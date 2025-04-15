@@ -44,7 +44,7 @@ pub struct Initialize <'info> {
         bump,
         space = Config::INIT_SPACE
     )]
-    pub config: Account<'info, Config>,
+    pub config: Account<'info, Config>, 
     pub associated_token_program: Program<'info,AssociatedToken>,
     pub token_program: Program<'info,Token>,
     pub system_program: Program<'info,System>
