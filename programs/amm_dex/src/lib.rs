@@ -15,7 +15,7 @@ pub use state::*;
 declare_id!("CGcWhMjmnRmB3B283VKaZsvB76uVqoVbmG6kKk9NQuPB");
 #[program]
 pub mod amm_dex {
-    use anchor_spl::token::accessor::authority;
+    // use anchor_spl::token::accessor::authority;
 
     use super::*;
 
