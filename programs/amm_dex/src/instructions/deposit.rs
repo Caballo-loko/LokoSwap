@@ -1,11 +1,11 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{Mint,Token,TokenAccount,Transfer,transfer}
+    token::{mint_to, transfer, Mint, MintTo, Token, TokenAccount, Transfer},
 };
 
 use constant_product_curve::ConstantProduct;
-use crate::state::config::Config;
+use crate::{error::AmmError, state::config::Config};
 
 #[derive(Accounts)]
 pub struct Deposit<'info> {
@@ -20,7 +20,6 @@ pub struct Deposit<'info> {
     )]
     pub user_x: Account<'info, TokenAccount>,
     #[account(
-        
         associated_token::mint = mint_y,
         associated_token::authority = user
     )]
@@ -38,11 +37,10 @@ pub struct Deposit<'info> {
     )]
     pub vault_y: Account<'info, TokenAccount>,
     #[account(
-        seeds = [b"config",config.key().as_ref()],
+        seeds = [b"config", config.key().as_ref()],
         bump = config.config_bump,
         has_one = mint_x,
         has_one = mint_y
-        
     )]
     pub config: Account<'info, Config>,
     #[account(
@@ -50,7 +48,7 @@ pub struct Deposit<'info> {
         seeds = [b"lp", config.key().as_ref()],
         bump,
     )]
-    pub mint_lp: Account<'info,Mint>, 
+    pub mint_lp: Account<'info, Mint>,
     #[account(
         init_if_needed,
         payer = user,
@@ -58,59 +56,66 @@ pub struct Deposit<'info> {
         associated_token::authority = user
     )]
     pub user_lp: Account<'info, TokenAccount>,
-    pub associated_token_program: Program<'info,AssociatedToken>,
-    pub token_program: Program<'info,Token>,
-    pub system_program: Program<'info,System>
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 impl<'info> Deposit<'info> {
-
-    pub fn deposit (
+    pub fn deposit(
         &mut self,
         amount: u64,
         max_x: u64,
-        max_y: u64
-    ) ->Result<()> {
-        require!(self.config.locked = false, AmmError:;PoolLocked);
-        require!(amount =? 0, AmmError::InvalidAmount)
-        let (x,y) = match self.mint_lp.supply == 0 && self.vault_x.amount == 0 && self.vault_y.amount == 0 {
-            true => (max_x, max_y),
-            false => {
-                let amounts = ConstantProduct::xy_deposit_amount_from_l(self.vault_x.amount, self.vault_y.amount, self.mint_lp.supply, amount, 6)
-                .unwrap();
-                (amounts.x,amounts.y);
-            }
+        max_y: u64,
+    ) -> Result<()> {
+        require!(self.config.locked == false, AmmError::PoolLocked);
+        require!(amount > 0, AmmError::InvalidAmount);
+
+        let (x, y) = if self.mint_lp.supply == 0 && self.vault_x.amount == 0 && self.vault_y.amount == 0 {
+            (max_x, max_y) ;
+        } else {
+            let amounts = ConstantProduct::xy_deposit_amounts_from_l(
+                self.vault_x.amount,
+                self.vault_y.amount,
+                self.mint_lp.supply,
+                amount,
+                6,
+            )
+            .unwrap();
+            (amounts.x, amounts.y)
         };
-        require!(x<= max_x && y<= max_y, AmmErrir:;SlippageExceeded);
-        self.deposit_token(true,x)?;
-        self.deposit_token(false,y)?;
+
+        require!(x <= max_x && y <= max_y, AmmError::SlippageExceeded);
+
+        self.deposit_tokens(true, x)?;
+        self.deposit_tokens(false, y)?;
 
         self.mint_lp_tokens(amount)
-    
     }
 
-    pub fn deposit_tokens(&mut self, is_x:bool, amount: u64) -> Result<()> {
-      let (from, to) = match is_x {
-        true => (
-            self.user_x.to_account_info(),
-            self.vault_x.to_account_info() 
-        ),
-        false => (
-            self.user_y.to_account_info(),
-            self.vault_y.to_account_info()
-        ),
-      };
-      
-      let cpi_program = self.token_program.to_account_info();
-      let cpi_accounts = Transfer {
-        from,
-        to,
-        authority: self.user.to_account_info(),
-      };
+    pub fn deposit_tokens(&mut self, is_x: bool, amount: u64) -> Result<()> {
+        let (from, to) = if is_x {
+            (
+                self.user_x.to_account_info(),
+                self.vault_x.to_account_info(),
+            )
+        } else {
+            (
+                self.user_y.to_account_info(),
+                self.vault_y.to_account_info(),
+            )
+        };
 
-      let ctx = CpiContext::new(cpi_program, cpi_accounts);
-      transfer(ctx, amount);
-      Ok(())
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_accounts = Transfer {
+            from,
+            to,
+            authority: self.user.to_account_info(),
+        };
+
+        let ctx = CpiContext::new(cpi_program, cpi_accounts);
+        transfer(ctx, amount)?;
+        Ok(())
     }
 
     pub fn mint_lp_tokens(&mut self, amount: u64) -> Result<()> {
@@ -118,20 +123,22 @@ impl<'info> Deposit<'info> {
 
         let cpi_accounts = MintTo {
             mint: self.mint_lp.to_account_info(),
-            to: self_user_lp.to_account_info(),
+            to: self.user_lp.to_account_info(),
             authority: self.config.to_account_info(),
         };
 
+        let config_key = self.config.key();
+
         let seeds = &[
-            &b"config"[..],
-            &self.config.seed.to_le_bytes(),
+            b"config".as_ref(),
+            config_key.as_ref(),
             &[self.config.config_bump],
         ];
 
         let signer_seeds = &[&seeds[..]];
 
+        let ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+        mint_to(ctx, amount)?;
         Ok(())
     }
-
-
 }

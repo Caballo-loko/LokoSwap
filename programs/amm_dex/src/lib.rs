@@ -15,9 +15,11 @@ pub use state::*;
 declare_id!("CGcWhMjmnRmB3B283VKaZsvB76uVqoVbmG6kKk9NQuPB");
 #[program]
 pub mod amm_dex {
+    use anchor_spl::token::accessor::authority;
+
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        initialize::initialize(ctx)
-    }
+    pub fn initialize(ctx: Context<Initialize>, seed: u64, fee: u16, authority: Option<Pubkey>, bump: &InitializeBumps) -> Result<()> {
+            ctx.accounts.initialize(seed, fee, authority, &ctx.bump)
+        }
 }
