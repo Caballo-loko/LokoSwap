@@ -23,11 +23,13 @@ pub mod amm_dex {
             ctx.accounts.initialize(seed, fee, authority, &ctx.bumps)
         }
     
-    pub fn deposit_tokens(ctx: Context<Deposit>, is_x: bool,amount: u64) -> Result<()> {
-            ctx.accounts.deposit_tokens(is_x,amount)?;
-            ctx.accounts.mint_lp_tokens(amount)?;
-            Ok(())
+    pub fn deposit(ctx: Context<Deposit>,amount: u64,max_x: u64,max_y: u64) -> Result<()> {
+            ctx.accounts.deposit(amount, max_x, max_y)
     }
+
+    pub fn withdraw(ctx: Context<Withdraw>,amount: u64,max_x: u64,max_y: u64) ->  Result<()> {
+            ctx.accounts.withdraw(amount, max_x, max_y)
+    } 
 
     
 }

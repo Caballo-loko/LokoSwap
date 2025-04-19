@@ -8,7 +8,7 @@ use constant_product_curve::ConstantProduct;
 use crate::{error::AmmError, state::Config};
 
 #[derive(Accounts)]
-pub struct Deposit<'info> {
+pub struct Withdraw<'info> {
 
     #[account(mut)]
     pub user: Signer<'info>,
@@ -71,9 +71,9 @@ pub struct Deposit<'info> {
     pub system_program: Program<'info, System>,
 }
 
-impl<'info> Deposit<'info> {
+impl<'info> Withdraw<'info> {
 
-    pub fn deposit(
+    pub fn withdraw(
         &mut self,
         amount: u64,
         max_x: u64,
@@ -90,7 +90,7 @@ impl<'info> Deposit<'info> {
         let (x, y) = if self.mint_lp.supply == 0 && self.vault_x.amount == 0 && self.vault_y.amount == 0 {
             (max_x, max_y)
         } else {
-            let amounts = ConstantProduct::xy_deposit_amounts_from_l(
+            let amounts = ConstantProduct::xy_withdraw_amounts_from_l(
                 self.vault_x.amount,
                 self.vault_y.amount,
                 self.mint_lp.supply,
@@ -106,16 +106,16 @@ impl<'info> Deposit<'info> {
         require!(x <= max_x && y <= max_y, AmmError::SlippageExceeded);
 
         // Deposit x tokens into the vault
-        self.deposit_tokens(true, x)?;
+        self.withdraw_tokens(true, x)?;
 
         // Deposit y tokens into the vault
-        self.deposit_tokens(false, y)?;
+        self.withdraw_tokens(false, y)?;
 
         // Mint LP tokens for the user
-        self.mint_lp_tokens(amount)
+        self.burn_lp_tokens(amount)
     }
 
-    pub fn deposit_tokens(&mut self, is_x: bool, amount: u64) -> Result<()> {
+    pub fn withdraw_tokens(&mut self, is_x: bool, amount: u64) -> Result<()> {
         let (from, to) = if is_x {
             (
                 self.user_x.to_account_info(),
@@ -141,7 +141,7 @@ impl<'info> Deposit<'info> {
     }
 
 
-    pub fn mint_lp_tokens(&mut self, amount: u64) -> Result<()> {
+    pub fn burn_lp_tokens(&mut self, amount: u64) -> Result<()> {
         let cpi_program = self.token_program.to_account_info();
 
         let cpi_accounts = MintTo {

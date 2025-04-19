@@ -31,4 +31,6 @@ pub enum AmmError {
     #[msg("No update authority set.")]
     NoAuthoritySet,
     #[msg("Invalid amount.")]
+    InvalidAmount,
 }
+
