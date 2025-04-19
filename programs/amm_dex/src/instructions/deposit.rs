@@ -80,13 +80,13 @@ impl<'info> Deposit<'info> {
         max_y: u64,
     ) -> Result<()> {
 
-        // Ensure the pool is not locked
+        
         require!(self.config.locked == false, AmmError::PoolLocked);
 
-        // Validate the deposit amount
+      
         require!(amount > 0, AmmError::InvalidAmount);
 
-        // Calculate the deposit amounts for x and y tokens
+
         let (x, y) = if self.mint_lp.supply == 0 && self.vault_x.amount == 0 && self.vault_y.amount == 0 {
             (max_x, max_y)
         } else {
@@ -102,16 +102,15 @@ impl<'info> Deposit<'info> {
             (amounts.x, amounts.y)
         };
 
-        // Check if the calculated amounts are within the allowed slippage
         require!(x <= max_x && y <= max_y, AmmError::SlippageExceeded);
 
-        // Deposit x tokens into the vault
+
         self.deposit_tokens(true, x)?;
 
-        // Deposit y tokens into the vault
+
         self.deposit_tokens(false, y)?;
 
-        // Mint LP tokens for the user
+
         self.mint_lp_tokens(amount)
     }
 
