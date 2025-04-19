@@ -80,13 +80,10 @@ impl<'info> Withdraw<'info> {
         max_y: u64,
     ) -> Result<()> {
 
-        // Ensure the pool is not locked
         require!(self.config.locked == false, AmmError::PoolLocked);
 
-        // Validate the deposit amount
         require!(amount > 0, AmmError::InvalidAmount);
 
-        // Calculate the deposit amounts for x and y tokens
         let (x, y) = if self.mint_lp.supply == 0 && self.vault_x.amount == 0 && self.vault_y.amount == 0 {
             (max_x, max_y)
         } else {
@@ -102,31 +99,37 @@ impl<'info> Withdraw<'info> {
             (amounts.x, amounts.y)
         };
 
-        // Check if the calculated amounts are within the allowed slippage
         require!(x <= max_x && y <= max_y, AmmError::SlippageExceeded);
 
-        // Deposit x tokens into the vault
         self.withdraw_tokens(true, x)?;
 
-        // Deposit y tokens into the vault
         self.withdraw_tokens(false, y)?;
 
-        // Mint LP tokens for the user
         self.burn_lp_tokens(amount)
     }
 
     pub fn withdraw_tokens(&mut self, is_x: bool, amount: u64) -> Result<()> {
         let (from, to) = if is_x {
             (
-                self.user_x.to_account_info(),
                 self.vault_x.to_account_info(),
+                self.user_x.to_account_info()
             )
         } else {
-            (
-                self.user_y.to_account_info(),
+            ( 
                 self.vault_y.to_account_info(),
+                self.user_y.to_account_info()
             )
         };
+
+        let seeds = &[
+            &b"config"[..],
+            &self.config.seed.to_le_bytes(),
+            &[self.config.config_bump],
+        ];
+
+        let signer_seeds = &[&seeds[..]];
+
+
 
         let cpi_program = self.token_program.to_account_info();
         let cpi_accounts = Transfer {
@@ -135,11 +138,9 @@ impl<'info> Withdraw<'info> {
             authority: self.user.to_account_info(),
         };
 
-        let ctx = CpiContext::new(cpi_program, cpi_accounts);
+        let ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts,signer_seeds);
         transfer(ctx, amount)
-        
     }
-
 
     pub fn burn_lp_tokens(&mut self, amount: u64) -> Result<()> {
         let cpi_program = self.token_program.to_account_info();
@@ -149,7 +150,6 @@ impl<'info> Withdraw<'info> {
             to: self.user_lp.to_account_info(),
             authority: self.config.to_account_info(),
         };
-
 
         let seeds = &[
             &b"config"[..],
