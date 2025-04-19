@@ -4,15 +4,19 @@ use anchor_spl::{
     token::{Mint,Token,TokenAccount}
 };
 
-use crate::state::config::Config;
+use crate::state::Config;
 
 #[derive(Accounts)]
 #[instruction(seed: u64)]
 pub struct Initialize <'info> {
+
     #[account(mut)]
     pub admin: Signer<'info>,
+
     pub mint_x: Account<'info, Mint>,
+
     pub mint_y: Account<'info, Mint>,
+
     #[account(
         init,
         payer = admin,
@@ -23,6 +27,7 @@ pub struct Initialize <'info> {
 
     )]
     pub mint_lp: Account<'info,Mint>,
+
     #[account(
         init,
         payer = admin,
@@ -30,6 +35,7 @@ pub struct Initialize <'info> {
         associated_token::authority = config
     )]
     pub vault_x: Account<'info, TokenAccount>,
+
     #[account(
         init,
         payer = admin,
@@ -37,6 +43,7 @@ pub struct Initialize <'info> {
         associated_token::authority = config,
     )]
     pub vault_y: Account<'info, TokenAccount>,
+
     #[account(
         init,
         payer = admin,
@@ -45,6 +52,7 @@ pub struct Initialize <'info> {
         space = Config::INIT_SPACE
     )]
     pub config: Account<'info, Config>, 
+
     pub associated_token_program: Program<'info,AssociatedToken>,
     pub token_program: Program<'info,Token>,
     pub system_program: Program<'info,System>
