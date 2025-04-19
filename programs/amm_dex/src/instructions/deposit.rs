@@ -72,6 +72,7 @@ pub struct Deposit<'info> {
 }
 
 impl<'info> Deposit<'info> {
+
     pub fn deposit(
         &mut self,
         amount: u64,
@@ -124,9 +125,10 @@ impl<'info> Deposit<'info> {
         };
 
         let ctx = CpiContext::new(cpi_program, cpi_accounts);
-        transfer(ctx, amount)?;
-        Ok(())
+        transfer(ctx, amount)
+        
     }
+
 
     pub fn mint_lp_tokens(&mut self, amount: u64) -> Result<()> {
         let cpi_program = self.token_program.to_account_info();
@@ -137,18 +139,16 @@ impl<'info> Deposit<'info> {
             authority: self.config.to_account_info(),
         };
 
-        let config_key = self.config.key();
 
         let seeds = &[
-            b"config".as_ref(),
-            config_key.as_ref(),
+            &b"config"[..],
+            &self.config.seed.to_le_bytes(),
             &[self.config.config_bump],
         ];
 
         let signer_seeds = &[&seeds[..]];
 
         let ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-        mint_to(ctx, amount)?;
-        Ok(())
+        mint_to(ctx, amount)
     }
 }

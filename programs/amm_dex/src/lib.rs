@@ -22,4 +22,12 @@ pub mod amm_dex {
     pub fn initialize(ctx: Context<Initialize>, seed: u64, fee: u16, authority: Option<Pubkey>) -> Result<()> {
             ctx.accounts.initialize(seed, fee, authority, &ctx.bumps)
         }
+    
+    pub fn deposit_tokens(ctx: Context<Deposit>, is_x: bool,amount: u64) -> Result<()> {
+            ctx.accounts.deposit_tokens(is_x,amount)?;
+            ctx.accounts.mint_lp_tokens(amount)?;
+            Ok(())
+    }
+
+    
 }
