@@ -48,7 +48,7 @@ pub struct Deposit<'info> {
         has_one = mint_x,
         has_one = mint_y
     )]
-    pub config: Account<'info, Config>,
+    pub config: Box<Account<'info, Config>>,
 
     #[account(
         mut,
