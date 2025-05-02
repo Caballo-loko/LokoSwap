@@ -12,8 +12,8 @@ pub struct Initialize<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 
-    pub mint_x: Box<Account<'info, Mint>>,
-    pub mint_y: Box<Account<'info, Mint>>,
+    pub mint_x: Account<'info, Mint>,
+    pub mint_y: Account<'info, Mint>,
 
     #[account(
         init,
@@ -23,7 +23,7 @@ pub struct Initialize<'info> {
         mint::decimals = 6,
         mint::authority = config,
     )]
-    pub mint_lp: Box<Account<'info, Mint>>,
+    pub mint_lp: Account<'info, Mint>,
 
     #[account(
         init,
@@ -31,7 +31,7 @@ pub struct Initialize<'info> {
         associated_token::mint = mint_x,
         associated_token::authority = config
     )]
-    pub vault_x: Box<Account<'info, TokenAccount>>,
+    pub vault_x: Account<'info, TokenAccount>,
 
     #[account(
         init,
@@ -39,7 +39,7 @@ pub struct Initialize<'info> {
         associated_token::mint = mint_y,
         associated_token::authority = config,
     )]
-    pub vault_y: Box<Account<'info, TokenAccount>>,
+    pub vault_y: Account<'info, TokenAccount>,
 
     #[account(
         init,

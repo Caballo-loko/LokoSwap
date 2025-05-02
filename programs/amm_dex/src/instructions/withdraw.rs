@@ -12,36 +12,36 @@ pub struct Withdraw<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
 
-    pub mint_x: Box<Account<'info, Mint>>,
-    pub mint_y: Box<Account<'info, Mint>>,
+    pub mint_x: Account<'info, Mint>,
+    pub mint_y: Account<'info, Mint>,
 
     #[account(
         mut,
         associated_token::mint = mint_x,
         associated_token::authority = user
     )]
-    pub user_x: Box<Account<'info, TokenAccount>>,
+    pub user_x: Account<'info, TokenAccount>,
 
     #[account(
         mut,
         associated_token::mint = mint_y,
         associated_token::authority = user
     )]
-    pub user_y: Box<Account<'info, TokenAccount>>,
+    pub user_y: Account<'info, TokenAccount>,
 
     #[account(
         mut,
         associated_token::mint = mint_x,
         associated_token::authority = config
     )]
-    pub vault_x: Box<Account<'info, TokenAccount>>,
+    pub vault_x: Account<'info, TokenAccount>,
 
     #[account(
         mut,
         associated_token::mint = mint_y,
         associated_token::authority = config,
     )]
-    pub vault_y: Box<Account<'info, TokenAccount>>,
+    pub vault_y: Account<'info, TokenAccount>,
 
     #[account(
         seeds = [b"config", config.key().as_ref()],
@@ -49,21 +49,21 @@ pub struct Withdraw<'info> {
         has_one = mint_x,
         has_one = mint_y
     )]
-    pub config: Box<Account<'info, Config>>,
+    pub config: Account<'info, Config>,
 
     #[account(
         mut,
         seeds = [b"lp", config.key().as_ref()],
         bump = config.lp_bump
     )]
-    pub mint_lp: Box<Account<'info, Mint>>,
+    pub mint_lp: Account<'info, Mint>,
 
     #[account(
         mut,
         associated_token::mint = mint_lp,
         associated_token::authority = user
     )]
-    pub user_lp: Box<Account<'info, TokenAccount>>,
+    pub user_lp: Account<'info, TokenAccount>,
 
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,

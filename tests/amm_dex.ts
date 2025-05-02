@@ -11,34 +11,27 @@ import {
 } from "@solana/web3.js";
 import {
   MINT_SIZE,
-  // TOKEN_2022_PROGRAM_ID,
-  createAssociatedTokenAccount,
-  TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountIdempotentInstruction,
   createInitializeMint2Instruction,
   createMintToInstruction,
   getAssociatedTokenAddressSync,
-  getMinimumBalanceForRentExemptAccount,
   getMinimumBalanceForRentExemptMint,
-  getOrCreateAssociatedTokenAccount,
+  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { randomBytes } from "crypto";
-import { Stats } from "fs";
-import { token } from "@coral-xyz/anchor/dist/cjs/utils";
 
 describe("anchor-amm-dex", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
-  const provider = anchor.getProvider();
+  const provider = anchor.getProvider() as anchor.AnchorProvider;
   const connection = provider.connection;
 
   const program = anchor.workspace.ammDex as Program<AmmDex>;
-  const progrmaId = program.programId;
+  const programId = program.programId;
   const tokenProgram = TOKEN_PROGRAM_ID;
-
-  const seed = new BN(randomBytes(8));
-
-  // const confirm = async (signature: string): Promise<string> =>
+  
+  // Generate a random seed
+  const seed = new anchor.BN(randomBytes(8));
 
   async function confirm(signature: string): Promise<string> {
     const block = await connection.getLatestBlockhash();
@@ -49,108 +42,161 @@ describe("anchor-amm-dex", () => {
     return signature;
   }
 
-  //const log = async (signature: string): Promise<string>
-
   async function log(signature: string): Promise<string> {
     console.log(
-      ` Your transaction signature: https://explorer.solana.com/transaction/${signature}?cluster=custom&customUrl=${connection.rpcEndpoint}`
+      `Your transaction signature: https://explorer.solana.com/transaction/${signature}?cluster=custom&customUrl=${connection.rpcEndpoint}`
     );
-
     return signature;
   }
 
-  const [admin, user, mintX, mintY] = Array.from({ length: 4 }, () => {
-    Keypair.generate();
-  });
+  // Create keypairs for admin and mints
+  const admin = Keypair.generate();
+  const mintX = Keypair.generate();
+  const mintY = Keypair.generate();
 
-  const mintLp = Keypair.generate();
-
-  const [vaultX, vaultY] = [admin].map((a) => {
-    getAssociatedTokenAddressSync(
-      mintX.publicKey,
-      config.publicKey,
-      true,
-      tokenProgram
-    ),
-      getAssociatedTokenAddressSync(
-        mintY.publicKey,
-        config.publicKey,
-        true,
-        tokenProgram
-      );
-  });
-
-  const config = PublicKey.findProgramAddressSync(
+  // Config PDA
+  const [config, configBump] = PublicKey.findProgramAddressSync(
     [Buffer.from("config"), seed.toArrayLike(Buffer, "le", 8)],
     program.programId
-  )[0];
+  );
 
-  const account = {
+  // LP mint PDA
+  const [mintLp, lpBump] = PublicKey.findProgramAddressSync(
+    [Buffer.from("lp"), config.toBuffer()],
+    program.programId
+  );
+
+  // Associated token accounts for vaults
+  const vaultX = getAssociatedTokenAddressSync(
+    mintX.publicKey,
+    config,
+    true
+  );
+
+  const vaultY = getAssociatedTokenAddressSync(
+    mintY.publicKey,
+    config,
+    true
+  );
+
+  // Accounts object for easy reference
+  const accounts = {
     admin: admin.publicKey,
-    user: user.publicKey,
     mintX: mintX.publicKey,
     mintY: mintY.publicKey,
-    mintLp: mintLp.publicKey,
+    mintLp,
     vaultX,
     vaultY,
     config,
     tokenProgram,
   };
 
-  it("Aidrop and create Mints", async () => {
-    let lamports = await getMinimumBalanceForRentExemptAccount(connection);
+  it("Airdrop and create Mints", async () => {
+    // Airdrop to admin
+    const airdropSig = await connection.requestAirdrop(admin.publicKey, 10 * LAMPORTS_PER_SOL);
+    await confirm(airdropSig);
+
+    // Create and initialize mints
     let tx = new Transaction();
-    tx.instructions = [
-      ...[admin, user].map((account) =>
-        SystemProgram.transfer({
-          fromPubkey: provider.publicKey,
-          toPubkey: account.publicKey,
-          lamports: 10 * LAMPORTS_PER_SOL,
-        })
-      ),
-      ...[mintX, mintY, mintLp].map((mint) =>
+    
+    // Only create mintX and mintY as regular accounts
+    // mintLp will be created by the program as a PDA
+    for (const mint of [mintX, mintY]) {
+      const mintLamports = await getMinimumBalanceForRentExemptMint(connection);
+      
+      tx.add(
         SystemProgram.createAccount({
           fromPubkey: provider.publicKey,
           newAccountPubkey: mint.publicKey,
-          lamports,
+          lamports: mintLamports,
           space: MINT_SIZE,
           programId: tokenProgram,
-        })
-      ),
-      ...[
-        { mint: mintX.publicKey, authority: maker.publicKey, ata: makerAtaA },
-        { mint: mintY.publicKey, authority: taker.publicKey, ata: takerAtaB },
-      ].flatMap((x) => [
+        }),
         createInitializeMint2Instruction(
-          x.mint,
-          6,
-          x.authority,
+          mint.publicKey,
+          6,  // 6 decimals
+          provider.publicKey,
           null,
           tokenProgram
-        ),
-        createAssociatedTokenAccountIdempotentInstruction(
-          provider.publicKey,
-          x.ata,
-          x.authority,
-          x.mint,
-          tokenProgram
-        ),
-        createMintToInstruction(
-          x.mint,
-          x.ata,
-          x.authority,
-          1e9,
-          undefined,
-          tokenProgram
-        ),
-      ]),
-    ];
-    await provider.sendAndConfirm(tx, [mintA, mintB, maker, taker]).then(log);
+        )
+      );
+    }
+
+    // For testing, create token accounts and mint tokens to admin
+    const adminAtaX = getAssociatedTokenAddressSync(
+      mintX.publicKey,
+      admin.publicKey,
+      false,
+      tokenProgram
+    );
+
+    const adminAtaY = getAssociatedTokenAddressSync(
+      mintY.publicKey,
+      admin.publicKey,
+      false,
+      tokenProgram
+    );
+
+    // Create token accounts and mint initial tokens to admin
+    tx.add(
+      createAssociatedTokenAccountIdempotentInstruction(
+        provider.publicKey,
+        adminAtaX,
+        admin.publicKey,
+        mintX.publicKey,
+        tokenProgram
+      ),
+      createMintToInstruction(
+        mintX.publicKey,
+        adminAtaX,
+        provider.publicKey,
+        1e9,  // 1,000 tokens
+        undefined,
+        tokenProgram
+      ),
+      createAssociatedTokenAccountIdempotentInstruction(
+        provider.publicKey,
+        adminAtaY,
+        admin.publicKey,
+        mintY.publicKey,
+        tokenProgram
+      ),
+      createMintToInstruction(
+        mintY.publicKey,
+        adminAtaY,
+        provider.publicKey,
+        1e9,  // 1,000 tokens
+        undefined,
+        tokenProgram
+      )
+    );
+
+    await provider.sendAndConfirm(tx, [mintX, mintY]).then(log);
   });
 
-  it("Is initialized!", async () => {
-    // Add your test here.
-    const tx = await program.methods.initialize().rpc();
-    console.log("Your transaction signature", tx);
+  it("Initializes the AMM", async () => {
+    // Initialize the AMM with the correct parameters
+    const fee = 30; // 0.3% fee (assuming fee is in basis points)
+  
+    
+    const tx = await program.methods
+      .initialize(
+        seed,
+        fee,
+        provider.publicKey
+      )
+      .accountsPartial({...accounts})
+      .signers([admin])
+      .rpc();
+    
+    await log(tx);
+    
+    // Verify initialization by fetching the config account
+    const configAccount = await program.account.config.fetch(config);
+    console.log("Config Account:", configAccount);
+    
   });
+
+
+
 });
