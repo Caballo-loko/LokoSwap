@@ -6,6 +6,7 @@ use anchor_spl::{
 
 use crate::state::Config;
 
+// Split the accounts structure to reduce stack usage
 #[derive(Accounts)]
 #[instruction(seed: u64)]
 pub struct Initialize<'info> {
@@ -23,7 +24,7 @@ pub struct Initialize<'info> {
         mint::decimals = 6,
         mint::authority = config,
     )]
-    pub mint_lp: Account<'info, Mint>,
+    pub mint_lp: Box<Account<'info, Mint>>, // Use Box to move this to the heap
 
     #[account(
         init,
@@ -31,7 +32,7 @@ pub struct Initialize<'info> {
         associated_token::mint = mint_x,
         associated_token::authority = config
     )]
-    pub vault_x: Account<'info, TokenAccount>,
+    pub vault_x: Box<Account<'info, TokenAccount>>, // Use Box to move this to the heap
 
     #[account(
         init,
@@ -39,7 +40,7 @@ pub struct Initialize<'info> {
         associated_token::mint = mint_y,
         associated_token::authority = config,
     )]
-    pub vault_y: Account<'info, TokenAccount>,
+    pub vault_y: Box<Account<'info, TokenAccount>>, // Use Box to move this to the heap
 
     #[account(
         init,
@@ -53,6 +54,7 @@ pub struct Initialize<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+   // pub rent: Sysvar<'info, Rent>, // Add rent sysvar which might be needed for token initialization
 }
 
 impl<'info> Initialize<'info> {

@@ -20,42 +20,43 @@ pub struct Deposit<'info> {
         associated_token::mint = mint_x,
         associated_token::authority = user
     )]
-    pub user_x: Account<'info, TokenAccount>,
+    pub user_x: Box<Account<'info, TokenAccount>>, // Box to move to heap
 
     #[account(
+        mut, // Added mut since you transfer from this account
         associated_token::mint = mint_y,
         associated_token::authority = user
     )]
-    pub user_y: Account<'info, TokenAccount>,
+    pub user_y: Box<Account<'info, TokenAccount>>, // Box to move to heap
 
     #[account(
         mut,
         associated_token::mint = mint_x,
         associated_token::authority = config
     )]
-    pub vault_x: Account<'info, TokenAccount>,
+    pub vault_x: Box<Account<'info, TokenAccount>>, // Box to move to heap
 
     #[account(
         mut,
         associated_token::mint = mint_y,
         associated_token::authority = config,
     )]
-    pub vault_y: Account<'info, TokenAccount>,
+    pub vault_y: Box<Account<'info, TokenAccount>>, // Box to move to heap
 
     #[account(
-        seeds = [b"config", config.key().as_ref()],
+        seeds = [b"config", config.seed.to_le_bytes().as_ref()], // Fixed seeds to match initialize
         bump = config.config_bump,
         has_one = mint_x,
         has_one = mint_y
     )]
-    pub config: Box<Account<'info, Config>>,
+    pub config: Account<'info, Config>,
 
     #[account(
         mut,
         seeds = [b"lp", config.key().as_ref()],
         bump = config.lp_bump
     )]
-    pub mint_lp: Box<Account<'info, Mint>>,
+    pub mint_lp: Box<Account<'info, Mint>>, // Box to move to heap
 
     #[account(
         init_if_needed,
@@ -63,11 +64,12 @@ pub struct Deposit<'info> {
         associated_token::mint = mint_lp,
         associated_token::authority = user
     )]
-    pub user_lp: Box<Account<'info, TokenAccount>>,
+    pub user_lp: Box<Account<'info, TokenAccount>>, // Box to move to heap
 
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>, // Add rent for init_if_needed
 }
 
 impl<'info> Deposit<'info> {
