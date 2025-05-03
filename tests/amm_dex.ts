@@ -26,7 +26,7 @@ describe("amm", () => {
 
   const connection = provider.connection;
 
-  const program = anchor.workspace.Amm as Program<AmmDex>;
+  const program = anchor.workspace.AmmDex as Program<AmmDex>;
 
   const tokenProgram = TOKEN_PROGRAM_ID;
 
