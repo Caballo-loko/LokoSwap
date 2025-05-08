@@ -59,8 +59,9 @@ pub struct Deposit<'info> {
     pub mint_lp: Account<'info, Mint>, // Box to move to heap
 
     #[account(
-        init_if_needed,
-        payer = user,
+        // init_if_needed, // avoiding these will create an ATA on client side
+        // payer = user,
+        mut,
         associated_token::mint = mint_lp,
         associated_token::authority = user
     )]

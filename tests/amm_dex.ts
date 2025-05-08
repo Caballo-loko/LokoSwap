@@ -14,6 +14,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createMint,
   getOrCreateAssociatedTokenAccount,
+  mintTo,
 } from "@solana/spl-token";
 import {
   Keypair,
@@ -65,7 +66,6 @@ describe("amm", () => {
   };
 
   before(async () => {
-    // Create and fund admin account
     admin = Keypair.generate();
     const transferTx = SystemProgram.transfer({
       fromPubkey: provider.publicKey,
@@ -84,7 +84,6 @@ describe("amm", () => {
     const tx2 = new Transaction().add(transferTx2);
     await provider.sendAndConfirm(tx2);
 
-    // Create token mints
     mintX = await createMint(
       provider.connection,
       admin,
@@ -101,7 +100,6 @@ describe("amm", () => {
       6
     );
 
-    // Derive PDAs
     config = PublicKey.findProgramAddressSync(
       [Buffer.from("config"), seed.toArrayLike(Buffer, "le", 8)],
       program.programId
@@ -115,32 +113,45 @@ describe("amm", () => {
     vaultX = getAssociatedTokenAddressSync(mintX, config, true);
     vaultY = getAssociatedTokenAddressSync(mintY, config, true);
 
-    userX = (await getOrCreateAssociatedTokenAccount(
+    const userXAccount = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      user,
+      mintX,
+      user.publicKey
+    );
+    userX = userXAccount.address;
+
+    const userYAccount = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      user,
+      mintY,
+      user.publicKey
+    );
+    userY = userYAccount.address;
+
+    await mintTo(
       provider.connection,
       admin,
       mintX,
-      user.publicKey,
-      false,
+      userX,
+      admin.publicKey,
+      1000000000
+    );
 
-    )).address
-
-    userY = (await getOrCreateAssociatedTokenAccount(
+    await mintTo(
       provider.connection,
       admin,
       mintY,
-      user.publicKey,
-      false,
-
-    )).address
-
+      userY,
+      admin.publicKey,
+      1000000000
+    );
   });
 
   it("Is initialized!", async () => {
     try {
-      // Note: We're passing the anchor Option<Pubkey> as null or the public key
-      // Based on your Rust code, it seems you want to pass the admin.publicKey as authority
       await program.methods
-        .initialize(seed, fee, admin.publicKey)
+        .initialize(seed, fee, null)
         .accountsStrict({
           admin: admin.publicKey,
           mintX: mintX,
@@ -157,70 +168,110 @@ describe("amm", () => {
         .rpc()
         .then(confirm)
         .then(log);
+        
+      const userLpAccount = await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        user,
+        mintLp,
+        user.publicKey
+      );
+      userLp = userLpAccount.address;
     }
     catch (error) {
       console.log("Initialization error:", error);
+      throw error;
     }
   });
  
- it("lets deposit!", async() => {
+  it("lets deposit!", async() => {
     try {
       await program.methods
-       .deposit(amount,maxX,maxY)
-       .accountsStrict({
-        user: user.publicKey,
-        mintX: mintX,
-        mintY: mintY,
-        userX: userX,
-        userY: userY,
-        vaultX: vaultX,
-        vaultY: vaultY,
-        config: config,
-        mintLp: mintLp,
-        userLp: userLp,
-        tokenProgram: tokenProgram,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId
-       })
-       .signers([user])
-       .rpc()
-       .then(confirm)
-       .then(log)
+        .deposit(amount, maxX, maxY)
+        .accountsStrict({
+          user: user.publicKey,
+          mintX: mintX,
+          mintY: mintY,
+          userX: userX,
+          userY: userY,
+          vaultX: vaultX,
+          vaultY: vaultY,
+          config: config,
+          mintLp: mintLp,
+          userLp: userLp,
+          tokenProgram: tokenProgram,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId
+        })
+        .signers([user])
+        .rpc()
+        .then(confirm)
+        .then(log);
     }
     catch (error) {
-      console.log(error)
+      console.log("Deposit error:", error);
+      throw error;
     }
- })
+  });
  
- it("lets withdraw!", async() => {
-  try {
-    await program.methods
-     .withdraw(amount,maxX,maxY)
-     .accountsStrict({
-      user: user.publicKey,
-      mintX: mintX,
-      mintY: mintY,
-      userX: userX,
-      userY: userY,
-      vaultX: vaultX,
-      vaultY: vaultY,
-      config: config,
-      mintLp: mintLp,
-      userLp: userLp,
-      tokenProgram: tokenProgram,
-      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-      systemProgram: SystemProgram.programId
-     })
-     .signers([user])
-     .rpc()
-     .then(confirm)
-     .then(log)
-  }
-  catch (error) {
-    console.log(error)
-  }
-})
+  it("lets withdraw!", async() => {
+    try {
+      await program.methods
+        .withdraw(amount, maxX, maxY)
+        .accountsStrict({
+          user: user.publicKey,
+          mintX: mintX,
+          mintY: mintY,
+          userX: userX,
+          userY: userY,
+          vaultX: vaultX,
+          vaultY: vaultY,
+          config: config,
+          mintLp: mintLp,
+          userLp: userLp,
+          tokenProgram: tokenProgram,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId
+        })
+        .signers([user])
+        .rpc()
+        .then(confirm)
+        .then(log);
+    }
+    catch (error) {
+      console.log("Withdraw error:", error);
+      throw error;
+    }
+  });
 
-
-
+  /*
+  it("lets swap!", async() => {
+    try {
+      await program.methods
+        .swap(amount, maxX, maxY)
+        .accountsStrict({
+          user: user.publicKey,
+          mintX: mintX,
+          mintY: mintY,
+          userX: userX,
+          userY: userY,
+          vaultX: vaultX,
+          vaultY: vaultY,
+          config: config,
+          mintLp: mintLp,
+          userLp: userLp,
+          tokenProgram: tokenProgram,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId
+        })
+        .signers([user])
+        .rpc()
+        .then(confirm)
+        .then(log);
+    }
+    catch (error) {
+      console.log("Swap error:", error);
+      throw error;
+    }
+  });
+  */
 });
