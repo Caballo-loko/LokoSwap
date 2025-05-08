@@ -24,7 +24,7 @@ pub struct Initialize<'info> {
         mint::decimals = 6,
         mint::authority = config,
     )]
-    pub mint_lp: Box<Account<'info, Mint>>, // Use Box to move this to the heap
+    pub mint_lp: Account<'info, Mint>, // Use Box to move this to the heap
 
     #[account(
         init,
@@ -32,7 +32,7 @@ pub struct Initialize<'info> {
         associated_token::mint = mint_x,
         associated_token::authority = config
     )]
-    pub vault_x: Box<Account<'info, TokenAccount>>, // Use Box to move this to the heap
+    pub vault_x: Account<'info, TokenAccount>, // Use Box to move this to the heap
 
     #[account(
         init,
@@ -40,21 +40,20 @@ pub struct Initialize<'info> {
         associated_token::mint = mint_y,
         associated_token::authority = config,
     )]
-    pub vault_y: Box<Account<'info, TokenAccount>>, // Use Box to move this to the heap
+    pub vault_y: Account<'info, TokenAccount>, // Use Box to move this to the heap
 
     #[account(
         init,
         payer = admin,
         seeds = [b"config",seed.to_le_bytes().as_ref()],
         bump,
-        space = Config::INIT_SPACE
+        space = 8 + Config::INIT_SPACE
     )]
     pub config: Account<'info, Config>,
 
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
-   // pub rent: Sysvar<'info, Rent>, // Add rent sysvar which might be needed for token initialization
 }
 
 impl<'info> Initialize<'info> {
