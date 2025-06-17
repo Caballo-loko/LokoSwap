@@ -1,1 +1,1 @@
-Automated Markte Maker written using Anchor
+Automated Market Maker written using Anchor
