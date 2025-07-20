@@ -6,14 +6,15 @@ use anchor_spl::{
 
 use crate::{error::AmmError, state::Config};
 use constant_product_curve::ConstantProduct;
+use constant_product_curve::LiquidityPair;
 
 #[derive(Accounts)]
 pub struct Swap<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
 
-    pub mint_x: Box<Account<'info, Mint>>,
-    pub mint_y: Box<Account<'info, Mint>>,
+    pub mint_x: Account<'info, Mint>,
+    pub mint_y: Account<'info, Mint>,
 
     #[account(
         init_if_needed,
@@ -21,7 +22,7 @@ pub struct Swap<'info> {
         associated_token::mint = mint_x,
         associated_token::authority = user
     )]
-    pub user_ata_x: Box<Account<'info, TokenAccount>>,
+    pub user_x: Account<'info, TokenAccount>,
 
     #[account(
         init_if_needed,
@@ -29,14 +30,14 @@ pub struct Swap<'info> {
         associated_token::mint = mint_y,
         associated_token::authority = user
     )]
-    pub user_ata_y: Box<Account<'info, TokenAccount>>,
+    pub user_y: Account<'info, TokenAccount>,
 
     #[account(
         mut,
         associated_token::mint = mint_x,
         associated_token::authority = config
     )]
-    pub vault_x: Box<Account<'info, TokenAccount>>,
+    pub vault_x: Account<'info, TokenAccount>,
 
     #[account(
         mut,
@@ -58,7 +59,7 @@ pub struct Swap<'info> {
         seeds = [b"lp", config.key().as_ref()],
         bump = config.lp_bump
     )]
-    pub mint_lp: Box<Account<'info, Mint>>,
+    pub mint_lp: Account<'info, Mint>,
 
     #[account(
         init_if_needed,
@@ -66,7 +67,7 @@ pub struct Swap<'info> {
         associated_token::mint = mint_lp,
         associated_token::authority = user
     )]
-    pub user_lp: Box<Account<'info, TokenAccount>>,
+    pub user_lp: Account<'info, TokenAccount>,
 
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,
@@ -78,7 +79,7 @@ impl<'info> Swap<'info> {
         let mut curve = ConstantProduct::init(
             self.vault_x.amount,
             self.vault_y.amount,
-            self.mint_lp.account,
+            1,
             self.config.fee,
             None,
         )
