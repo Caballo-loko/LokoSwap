@@ -7,6 +7,10 @@ use anchor_spl::{
 use crate::state::Config;
 use constant_product_curve::ConstantProduct;
 use constant_product_curve::LiquidityPair;
+//Either
+//You give X and Take Y(deposit,withdraw)
+//OR
+//You give Y and Take X(deposit,withdraw)
 
 #[derive(Accounts)]
 pub struct Swap<'info> {
@@ -76,6 +80,7 @@ pub struct Swap<'info> {
 
 impl<'info> Swap<'info> {
     pub fn swap(&mut self, is_x: bool, amount: u64, min: u64) -> Result<()> {
+        //Initializing the Curve
         let mut curve = ConstantProduct::init(
             self.vault_x.amount,
             self.vault_y.amount,

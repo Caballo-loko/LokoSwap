@@ -70,7 +70,7 @@ describe("amm", () => {
     const transferTx = SystemProgram.transfer({
       fromPubkey: provider.publicKey,
       toPubkey: admin.publicKey,
-      lamports: 10 * LAMPORTS_PER_SOL
+      lamports: 10 * LAMPORTS_PER_SOL,
     });
     const tx = new Transaction().add(transferTx);
     await provider.sendAndConfirm(tx);
@@ -79,7 +79,7 @@ describe("amm", () => {
     const transferTx2 = SystemProgram.transfer({
       fromPubkey: provider.publicKey,
       toPubkey: user.publicKey,
-      lamports: 10 * LAMPORTS_PER_SOL
+      lamports: 10 * LAMPORTS_PER_SOL,
     });
     const tx2 = new Transaction().add(transferTx2);
     await provider.sendAndConfirm(tx2);
@@ -162,7 +162,7 @@ describe("amm", () => {
           config: config,
           tokenProgram: tokenProgram,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId
+          systemProgram: SystemProgram.programId,
         })
         .signers([admin])
         .rpc()
@@ -176,8 +176,7 @@ describe("amm", () => {
         user.publicKey
       );
       userLp = userLpAccount.address;
-    }
-    catch (error) {
+    } catch (error) {
       console.log("Initialization error:", error);
       throw error;
     }
@@ -200,14 +199,13 @@ describe("amm", () => {
           userLp: userLp,
           tokenProgram: tokenProgram,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId
+          systemProgram: SystemProgram.programId,
         })
         .signers([user])
         .rpc()
         .then(confirm)
         .then(log);
-    }
-    catch (error) {
+    } catch (error) {
       console.log("Deposit error:", error);
       throw error;
     }
@@ -230,23 +228,22 @@ describe("amm", () => {
           userLp: userLp,
           tokenProgram: tokenProgram,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId
+          systemProgram: SystemProgram.programId,
         })
         .signers([user])
         .rpc()
         .then(confirm)
         .then(log);
-    }
-    catch (error) {
+    } catch (error) {
       console.log("Withdraw error:", error);
       throw error;
     }
   });
 
-  it("lets swap!", async() => {
+  it("lets swap!", async () => {
     try {
       await program.methods
-        .swap(amount, true, 2)
+        .swap(amount, true, new BN(1000))
         .accountsStrict({
           user: user.publicKey,
           mintX: mintX,
@@ -254,21 +251,56 @@ describe("amm", () => {
           userX: userX,
           userY: userY,
           vaultX: vaultX,
-          vaultY: vaultY,
-          config: config,
           mintLp: mintLp,
           userLp: userLp,
+          vaultY: vaultY,
+          config: config,
           tokenProgram: tokenProgram,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId
+          systemProgram: SystemProgram.programId,
         })
         .signers([user])
         .rpc()
         .then(confirm)
         .then(log);
-    }
-    catch (error) {
+    } catch (error) {
       console.log("Swap error:", error);
+      throw error;
+    }
+  });
+
+  it("should lock the pool", async () => {
+    try {
+      await program.methods
+        .lock()
+        .accountsStrict({
+          user: admin.publicKey,
+          config: config,
+        })
+        .signers([admin])
+        .rpc()
+        .then(confirm)
+        .then(log);
+    } catch (error) {
+      console.log("Lock error:", error);
+      throw error;
+    }
+  });
+
+  it("should unlock the pool", async () => {
+    try {
+      await program.methods
+        .unlock()
+        .accountsStrict({
+          user: admin.publicKey,
+          config: config,
+        })
+        .signers([admin])
+        .rpc()
+        .then(confirm)
+        .then(log);
+    } catch (error) {
+      console.log("Unlock error:", error);
       throw error;
     }
   });
