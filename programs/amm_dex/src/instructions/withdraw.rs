@@ -71,7 +71,11 @@ pub struct Withdraw<'info> {
 }
 
 impl<'info> Withdraw<'info> {
-    pub fn withdraw(&mut self, amount: u64, min_x: u64, min_y: u64) -> Result<()> {
+    pub fn withdraw(&mut self,
+        amount: u64,//The Amount of LP tokens to burn
+        min_x: u64,//Minimum Amount of X we Are willing to Take back(withdraw)
+        min_y: u64//Minimum Amount of Y we Are willing to Take Back(withdraw)
+    ) -> Result<()> {
         let amounts = ConstantProduct::xy_withdraw_amounts_from_l(
             self.vault_x.amount,
             self.vault_y.amount,
@@ -126,7 +130,6 @@ impl<'info> Withdraw<'info> {
     }
 
     pub fn burn_lp_tokens(&mut self, amount: u64) -> Result<()> {
-        let cpi_program = self.token_program.to_account_info();
 
         let cpi_accounts = Burn {
             mint: self.mint_lp.to_account_info(),
@@ -134,7 +137,7 @@ impl<'info> Withdraw<'info> {
             authority: self.user.to_account_info(),
         };
 
-        let ctx = CpiContext::new(cpi_program, cpi_accounts);
+        let ctx = CpiContext::new(self.token_program.to_account_info(), cpi_accounts);
         burn(ctx, amount)
     }
 }

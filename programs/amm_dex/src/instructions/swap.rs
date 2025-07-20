@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{mint_to, transfer, Mint, MintTo, Token, TokenAccount, Transfer},
+    token::{transfer, Mint,Token, TokenAccount, Transfer},
 };
 
-use crate::{error::AmmError, state::Config};
+use crate::state::Config;
 use constant_product_curve::ConstantProduct;
 use constant_product_curve::LiquidityPair;
 
@@ -79,7 +79,7 @@ impl<'info> Swap<'info> {
         let mut curve = ConstantProduct::init(
             self.vault_x.amount,
             self.vault_y.amount,
-            1,
+            self.mint_lp.supply,
             self.config.fee,
             None,
         )

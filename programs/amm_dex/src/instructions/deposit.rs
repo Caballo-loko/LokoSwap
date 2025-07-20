@@ -73,7 +73,11 @@ pub struct Deposit<'info> {
 }
 
 impl<'info> Deposit<'info> {
-    pub fn deposit(&mut self, amount: u64, max_x: u64, max_y: u64) -> Result<()> {
+    pub fn deposit(&mut self,
+        amount: u64,//THE AMOUNT OF LP TOKENS USER WANTS TO CLAIM
+        max_x: u64, // REFERS USER NEED TO DEPOSIT MAX TOKEN_X TO GET AMOUNT OF LP
+        max_y: u64// REFERS USER NEED TO DEPOSIT MAX TOKEN_Y TO GET AMOUNT OF LP
+    ) -> Result<()> {
 
         require!(self.config.locked == false, AmmError::PoolLocked);
         require!(amount > 0, AmmError::InvalidAmount);
@@ -95,9 +99,11 @@ impl<'info> Deposit<'info> {
 
         require!(x <= max_x && y <= max_y, AmmError::SlippageExceeded);
 
-        self.deposit_tokens(true, x)?;
-        self.deposit_tokens(false, y)?;
-        self.mint_lp_tokens(amount)
+        self.deposit_tokens(true, x)?;//Depositing X Token
+
+        self.deposit_tokens(false, y)?;//Depositing Y Token
+
+        self.mint_lp_tokens(amount)//When The User has Deposited X and Y token we now Mint Lp tokens into User Lp ATA
     }
 
     pub fn deposit_tokens(&mut self, is_x: bool, amount: u64) -> Result<()> {
@@ -125,7 +131,6 @@ impl<'info> Deposit<'info> {
     }
 
     pub fn mint_lp_tokens(&mut self, amount: u64) -> Result<()> {
-        let cpi_program = self.token_program.to_account_info();
 
         let cpi_accounts = MintTo {
             mint: self.mint_lp.to_account_info(),
@@ -141,7 +146,7 @@ impl<'info> Deposit<'info> {
 
         let signer_seeds = &[&seeds[..]];
 
-        let ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+        let ctx = CpiContext::new_with_signer(self.token_program.to_account_info(), cpi_accounts, signer_seeds);
         mint_to(ctx, amount)?;
         Ok(())
     }

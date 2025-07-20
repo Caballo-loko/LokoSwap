@@ -40,4 +40,14 @@ pub mod amm_dex {
         ctx.accounts.swap(is_x, amount, min)?;
         Ok(())
     }
+
+    pub fn lock(ctx: Context<Update>) -> Result<()> {
+        ctx.accounts.lock()?;
+        Ok(())
+    }
+
+    pub fn unlock(ctx: Context<Update>) -> Result<()> {
+        ctx.accounts.unlock()?;
+        Ok(())
+    }
 }
