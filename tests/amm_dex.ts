@@ -168,7 +168,7 @@ describe("amm", () => {
         .rpc()
         .then(confirm)
         .then(log);
-        
+
       const userLpAccount = await getOrCreateAssociatedTokenAccount(
         provider.connection,
         user,
@@ -182,8 +182,8 @@ describe("amm", () => {
       throw error;
     }
   });
- 
-  it("lets deposit!", async() => {
+
+  it("lets deposit!", async () => {
     try {
       await program.methods
         .deposit(amount, maxX, maxY)
@@ -212,8 +212,8 @@ describe("amm", () => {
       throw error;
     }
   });
- 
-  it("lets withdraw!", async() => {
+
+  it("lets withdraw!", async () => {
     try {
       await program.methods
         .withdraw(amount, maxX, maxY)
@@ -243,11 +243,10 @@ describe("amm", () => {
     }
   });
 
-  /*
   it("lets swap!", async() => {
     try {
       await program.methods
-        .swap(amount, maxX, maxY)
+        .swap(amount, true, 2)
         .accountsStrict({
           user: user.publicKey,
           mintX: mintX,
@@ -273,5 +272,4 @@ describe("amm", () => {
       throw error;
     }
   });
-  */
 });

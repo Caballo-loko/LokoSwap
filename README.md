@@ -1,4 +1,4 @@
-# amm-dex
+# CurveSwap
 
 > **Automated Market Maker (AMM) Decentralized Exchange written in Rust and TypeScript (Anchor Framework)**
 

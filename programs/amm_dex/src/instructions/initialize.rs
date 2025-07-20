@@ -6,7 +6,6 @@ use anchor_spl::{
 
 use crate::state::Config;
 
-// Split the accounts structure to reduce stack usage
 #[derive(Accounts)]
 #[instruction(seed: u64)]
 pub struct Initialize<'info> {
@@ -24,7 +23,7 @@ pub struct Initialize<'info> {
         mint::decimals = 6,
         mint::authority = config,
     )]
-    pub mint_lp: Account<'info, Mint>, // Use Box to move this to the heap
+    pub mint_lp: Account<'info, Mint>,
 
     #[account(
         init,
@@ -32,7 +31,7 @@ pub struct Initialize<'info> {
         associated_token::mint = mint_x,
         associated_token::authority = config
     )]
-    pub vault_x: Account<'info, TokenAccount>, // Use Box to move this to the heap
+    pub vault_x: Account<'info, TokenAccount>,
 
     #[account(
         init,
@@ -40,12 +39,12 @@ pub struct Initialize<'info> {
         associated_token::mint = mint_y,
         associated_token::authority = config,
     )]
-    pub vault_y: Account<'info, TokenAccount>, // Use Box to move this to the heap
+    pub vault_y: Account<'info, TokenAccount>,
 
     #[account(
         init,
         payer = admin,
-        seeds = [b"config",seed.to_le_bytes().as_ref()],
+        seeds = [b"config",seed.to_be_bytes().as_ref()],
         bump,
         space = 8 + Config::INIT_SPACE
     )]

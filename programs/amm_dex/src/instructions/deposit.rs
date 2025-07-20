@@ -4,6 +4,7 @@ use anchor_spl::{
     token::{mint_to, transfer, Mint, MintTo, Token, TokenAccount, Transfer},
 };
 
+
 use crate::{error::AmmError, state::Config};
 use constant_product_curve::ConstantProduct;
 
@@ -20,31 +21,31 @@ pub struct Deposit<'info> {
         associated_token::mint = mint_x,
         associated_token::authority = user
     )]
-    pub user_x: Account<'info, TokenAccount>, // Box to move to heap
+    pub user_x: Account<'info, TokenAccount>,
 
     #[account(
-        mut, // Added mut since you transfer from this account
+        mut,
         associated_token::mint = mint_y,
         associated_token::authority = user
     )]
-    pub user_y: Account<'info, TokenAccount>, // Box to move to heap
+    pub user_y: Account<'info, TokenAccount>,
 
     #[account(
         mut,
         associated_token::mint = mint_x,
         associated_token::authority = config
     )]
-    pub vault_x: Account<'info, TokenAccount>, // Box to move to heap
+    pub vault_x: Account<'info, TokenAccount>,
 
     #[account(
         mut,
         associated_token::mint = mint_y,
         associated_token::authority = config,
     )]
-    pub vault_y: Account<'info, TokenAccount>, // Box to move to heap
+    pub vault_y: Account<'info, TokenAccount>,
 
     #[account(
-        seeds = [b"config", config.seed.to_le_bytes().as_ref()], // Fixed seeds to match initialize
+        seeds = [b"config", config.seed.to_be_bytes().as_ref()],
         bump = config.config_bump,
         has_one = mint_x,
         has_one = mint_y
@@ -56,16 +57,15 @@ pub struct Deposit<'info> {
         seeds = [b"lp", config.key().as_ref()],
         bump = config.lp_bump
     )]
-    pub mint_lp: Account<'info, Mint>, // Box to move to heap
+    pub mint_lp: Account<'info, Mint>,
 
     #[account(
-        // init_if_needed, // avoiding these will create an ATA on client side
-        // payer = user,
-        mut,
+        init_if_needed,
+        payer = user,
         associated_token::mint = mint_lp,
         associated_token::authority = user
     )]
-    pub user_lp: Account<'info, TokenAccount>, // Box to move to heap
+    pub user_lp: Account<'info, TokenAccount>,
 
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,
@@ -74,8 +74,8 @@ pub struct Deposit<'info> {
 
 impl<'info> Deposit<'info> {
     pub fn deposit(&mut self, amount: u64, max_x: u64, max_y: u64) -> Result<()> {
-        require!(self.config.locked == false, AmmError::PoolLocked);
 
+        require!(self.config.locked == false, AmmError::PoolLocked);
         require!(amount > 0, AmmError::InvalidAmount);
 
         let (x, y) =
@@ -135,7 +135,7 @@ impl<'info> Deposit<'info> {
 
         let seeds = &[
             b"config",
-            &self.config.seed.to_le_bytes()[..],
+            &self.config.seed.to_be_bytes()[..],
             &[self.config.config_bump],
         ];
 
