@@ -3,6 +3,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token_interface::{Mint, TokenAccount, TokenInterface},
 };
+use std::str::FromStr;
 
 use crate::{error::AmmError, state::Config};
 
@@ -90,6 +91,11 @@ impl<'info> Initialize<'info> {
         require!(fee <= 1000, AmmError::InvalidFee);
         require!(transfer_fee_basis_points <= 10000, AmmError::InvalidFee);
         
+        // Validate hook program if provided
+        if let Some(hook_program) = hook_program_id {
+            self.validate_hook_program(hook_program)?;
+        }
+        
         // Validate token programs match the mints
         self.validate_token_programs()?;
         
@@ -108,6 +114,14 @@ impl<'info> Initialize<'info> {
         let x_has_transfer_hook = self.has_transfer_hook(&self.mint_x)?.is_some();
         let y_has_transfer_hook = self.has_transfer_hook(&self.mint_y)?.is_some();
 
+        // Initialize approved hook programs list
+        let approved_hook_programs = vec![
+            // Deployed proven hook programs from Solana examples
+            Pubkey::from_str("2XRSVCMWbgLUJGFRdKv3TpCoMk72fPJGTb6xd2atz6NP").unwrap(), // Whitelist Hook
+            Pubkey::from_str("7V4o2273MtNWDtJSuPW3UEXgumVLHgewVmQYZpLd2bGt").unwrap(), // Counter Hook  
+            Pubkey::from_str("CrPqWjYKACWxozfTjbq2fC9UtCFd1DuSR9zkvhVDY4fE").unwrap(), // Transfer Cost Hook
+        ];
+
         // Initialize config with Token-2022 extension support
         self.config.set_inner(Config {
             seed,
@@ -125,6 +139,7 @@ impl<'info> Initialize<'info> {
             default_transfer_fee_max: max_transfer_fee,
             fee_withdraw_authority: self.config.key(), // Self as PDA authority
             default_hook_program: hook_program_id,
+            approved_hook_programs,
             
             // Extension support flags
             supports_transfer_fees: x_has_transfer_fee || y_has_transfer_fee,
@@ -284,5 +299,23 @@ impl<'info> Initialize<'info> {
         }
         
         Ok(None)
+    }
+
+    fn validate_hook_program(&self, hook_program_id: Pubkey) -> Result<()> {
+        // Define approved hook programs (deployed proven programs)
+        let approved_programs = [
+            Pubkey::from_str("2XRSVCMWbgLUJGFRdKv3TpCoMk72fPJGTb6xd2atz6NP").unwrap(), // Whitelist Hook
+            Pubkey::from_str("7V4o2273MtNWDtJSuPW3UEXgumVLHgewVmQYZpLd2bGt").unwrap(), // Counter Hook  
+            Pubkey::from_str("CrPqWjYKACWxozfTjbq2fC9UtCFd1DuSR9zkvhVDY4fE").unwrap(), // Transfer Cost Hook
+        ];
+
+        // Check if the provided hook program is in the approved list
+        require!(
+            approved_programs.contains(&hook_program_id),
+            AmmError::UnsupportedHookProgram
+        );
+
+        msg!("Hook program {} is approved", hook_program_id);
+        Ok(())
     }
 }

@@ -10,13 +10,15 @@ import {
   getOrCreateAssociatedTokenAccount,
   mintTo,
   TOKEN_2022_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
   ExtensionType,
   getMintLen,
   createInitializeTransferFeeConfigInstruction,
   createInitializeTransferHookInstruction,
   getAccount,
   createInitializeMintInstruction,
+  harvestWithheldTokensToMint,
+  withdrawWithheldTokensFromMint,
+  getMint,
 } from "@solana/spl-token";
 import {
   Keypair,
@@ -27,6 +29,7 @@ import {
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import { expect } from "chai";
+import { HookProgramManager } from "./hook-manager";
 
 describe("LokoSwap AMM with Token-2022 Extensions", function () {
   this.timeout(60000);
@@ -40,36 +43,60 @@ describe("LokoSwap AMM with Token-2022 Extensions", function () {
 
   // Test constants
   const fee = 25; // 0.25% AMM fee
-  const transferFeeBasisPoints = 100; // 1% transfer fee
-  const maxTransferFee = new BN(1000000); // 1 token max transfer fee
+  const transferFeeBasisPoints = 250; // 2.5% transfer fee (more noticeable for testing)
+  const maxTransferFee = new BN(5000000); // 5 tokens max transfer fee
 
   // Test accounts
   let admin: Keypair;
   let user: Keypair;
   let feeCollector: Keypair;
 
-  // Test configurations for different scenarios
+  // Token-2022 Extension Test Scenarios - Pure Token-2022 pools only
   const testScenarios = [
     {
-      name: "Legacy SPL Token vs Token-2022 Plain",
-      mintXType: "legacy",
-      mintYType: "token2022",
+      name: "Plain Token-2022 vs Plain Token-2022",
+      mintXType: "token2022",
+      mintYType: "token2022", 
       mintXExtensions: [],
       mintYExtensions: [],
     },
     {
-      name: "Token-2022 with Transfer Fee vs Token-2022 Plain", 
+      name: "Transfer Fee Token vs Plain Token-2022",
       mintXType: "token2022",
       mintYType: "token2022",
       mintXExtensions: [ExtensionType.TransferFeeConfig],
       mintYExtensions: [],
     },
     {
-      name: "Both Token-2022 with Transfer Fees",
+      name: "Both Tokens with Transfer Fees",
+      mintXType: "token2022",
+      mintYType: "token2022", 
+      mintXExtensions: [ExtensionType.TransferFeeConfig],
+      mintYExtensions: [ExtensionType.TransferFeeConfig],
+    },
+    {
+      name: "Whitelist Hook Token vs Plain Token-2022",
+      mintXType: "token2022",
+      mintYType: "token2022",
+      mintXExtensions: [ExtensionType.TransferHook],
+      mintYExtensions: [],
+      hookProgram: HookProgramManager.WHITELIST_HOOK_PROGRAM_ID,
+    },
+    {
+      name: "Mixed Extensions - Transfer Fee and Counter Hook",
       mintXType: "token2022", 
       mintYType: "token2022",
       mintXExtensions: [ExtensionType.TransferFeeConfig],
-      mintYExtensions: [ExtensionType.TransferFeeConfig],
+      mintYExtensions: [ExtensionType.TransferHook],
+      hookProgram: HookProgramManager.COUNTER_HOOK_PROGRAM_ID,
+    },
+    {
+      name: "Both Tokens with Fees and Transfer Cost Hook",
+      mintXType: "token2022",
+      mintYType: "token2022",
+      mintXExtensions: [ExtensionType.TransferFeeConfig],
+      mintYExtensions: [ExtensionType.TransferFeeConfig, ExtensionType.TransferHook],
+      hookProgram: HookProgramManager.TRANSFER_COST_HOOK_PROGRAM_ID,
     }
   ];
 
@@ -235,53 +262,27 @@ describe("LokoSwap AMM with Token-2022 Extensions", function () {
       before(async function () {
         this.timeout(30000);
         
-        // Determine token programs
-        tokenProgramX = scenario.mintXType === "legacy" ? TOKEN_PROGRAM_ID : TOKEN_2022_PROGRAM_ID;
-        tokenProgramY = scenario.mintYType === "legacy" ? TOKEN_PROGRAM_ID : TOKEN_2022_PROGRAM_ID;
+        // All tokens are Token-2022 - determine extensions only
+        tokenProgramX = TOKEN_2022_PROGRAM_ID;
+        tokenProgramY = TOKEN_2022_PROGRAM_ID;
 
-        // Create mints with appropriate extensions
-        if (scenario.mintXType === "legacy") {
-          mintX = await createMint(
-            connection,
-            admin,
-            admin.publicKey,
-            null,
-            6,
-            undefined,
-            undefined,
-            TOKEN_PROGRAM_ID
-          );
-        } else {
-          mintX = await createMintWithExtensions(
-            admin,
-            6,
-            scenario.mintXExtensions,
-            TOKEN_2022_PROGRAM_ID
-          );
-        }
+        // Create Token-2022 mints with specified extensions
+        mintX = await createMintWithExtensions(
+          admin,
+          6,
+          scenario.mintXExtensions,
+          TOKEN_2022_PROGRAM_ID
+        );
 
-        if (scenario.mintYType === "legacy") {
-          mintY = await createMint(
-            connection,
-            admin,
-            admin.publicKey,
-            null,
-            6,
-            undefined,
-            undefined,
-            TOKEN_PROGRAM_ID
-          );
-        } else {
-          mintY = await createMintWithExtensions(
-            admin,
-            6,
-            scenario.mintYExtensions,
-            TOKEN_2022_PROGRAM_ID
-          );
-        }
+        mintY = await createMintWithExtensions(
+          admin,
+          6,
+          scenario.mintYExtensions,
+          TOKEN_2022_PROGRAM_ID
+        );
 
-        console.log(`Created ${scenario.mintXType} mintX:`, mintX.toString());
-        console.log(`Created ${scenario.mintYType} mintY:`, mintY.toString());
+        console.log(`Created Token-2022 mintX with extensions [${scenario.mintXExtensions.map(ext => ExtensionType[ext]).join(', ')}]:`, mintX.toString());
+        console.log(`Created Token-2022 mintY with extensions [${scenario.mintYExtensions.map(ext => ExtensionType[ext]).join(', ')}]:`, mintY.toString());
 
         // Derive PDAs
         config = PublicKey.findProgramAddressSync([
@@ -347,7 +348,7 @@ describe("LokoSwap AMM with Token-2022 Extensions", function () {
               vaultX: vaultX,
               vaultY: vaultY,
               config: config,
-              tokenProgram: TOKEN_2022_PROGRAM_ID, // LP mint is always Token-2022
+              tokenProgram: TOKEN_2022_PROGRAM_ID, // All tokens are Token-2022
               tokenProgramX: tokenProgramX,
               tokenProgramY: tokenProgramY,
               associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -373,18 +374,15 @@ describe("LokoSwap AMM with Token-2022 Extensions", function () {
         }
       });
 
-      it("creates user LP token account", async () => {
-        userLp = (await getOrCreateAssociatedTokenAccount(
-          connection,
-          user,
+      it("derives user LP token account address", async () => {
+        // Just derive the address - deposit instruction will create it with init_if_needed
+        userLp = getAssociatedTokenAddressSync(
           mintLp,
           user.publicKey,
-          undefined,
-          undefined,
-          undefined,
+          false,
           TOKEN_2022_PROGRAM_ID // LP mint is always Token-2022
-        )).address;
-        console.log("User LP token account created");
+        );
+        console.log("User LP token account address derived:", userLp.toString());
       });
 
       it("deposits liquidity handling Token-2022 extensions", async () => {
@@ -417,7 +415,7 @@ describe("LokoSwap AMM with Token-2022 Extensions", function () {
               config: config,
               mintLp: mintLp,
               userLp: userLp,
-              tokenProgram: TOKEN_2022_PROGRAM_ID,
+              tokenProgram: TOKEN_2022_PROGRAM_ID, // All tokens are Token-2022
               associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
               systemProgram: SystemProgram.programId,
             })
@@ -487,7 +485,7 @@ describe("LokoSwap AMM with Token-2022 Extensions", function () {
               config: config,
               mintLp: mintLp,
               userLp: userLp,
-              tokenProgram: TOKEN_2022_PROGRAM_ID,
+              tokenProgram: TOKEN_2022_PROGRAM_ID, // All tokens are Token-2022
               associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
               systemProgram: SystemProgram.programId,
             })
@@ -548,7 +546,7 @@ describe("LokoSwap AMM with Token-2022 Extensions", function () {
               config: config,
               mintLp: mintLp,
               userLp: userLp,
-              tokenProgram: TOKEN_2022_PROGRAM_ID,
+              tokenProgram: TOKEN_2022_PROGRAM_ID, // All tokens are Token-2022
               associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
               systemProgram: SystemProgram.programId,
             })

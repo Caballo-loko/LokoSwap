@@ -37,7 +37,7 @@ cd LokoSwap
 
 2. Install dependencies
 ```bash
-yarn install
+npm install
 ```
 
 3. Build the program

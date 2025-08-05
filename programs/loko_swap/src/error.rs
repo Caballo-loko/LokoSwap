@@ -46,6 +46,8 @@ pub enum AmmError {
     MathOverflow,
     #[msg("Insufficient funds")]
     InsufficientFunds,
+    #[msg("Hook program not in approved list")]
+    UnsupportedHookProgram,
     
 }
 

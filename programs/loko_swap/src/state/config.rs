@@ -24,4 +24,8 @@ pub struct Config {
     pub supports_transfer_hooks: bool,
     pub supports_metadata: bool,
     pub supports_interest_bearing: bool,
+    
+    // Whitelisted hook programs for security
+    #[max_len(10)]
+    pub approved_hook_programs: Vec<Pubkey>,
 }
