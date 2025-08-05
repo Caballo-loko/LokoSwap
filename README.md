@@ -1,128 +1,109 @@
-# CurveSwap
+# LokoSwap
 
-> **Automated Market Maker (AMM) Decentralized Exchange written in Rust and TypeScript (Anchor Framework)**
+A decentralized exchange (DEX) built for the Solana network. LokoSwap provides automated market making (AMM) functionality with constant product curves, allowing users to swap tokens, provide liquidity, and earn fees with Token 2022 transfer hooks and extensions.
 
----
+## Features
 
-## Overview
+- **Token Swapping**: Exchange tokens using automated market making 
+- **Liquidity Provision**: Add liquidity to pools and earn LP tokens
+- **Pool Management**: Create new trading pairs and manage existing pools
+- **Security Controls**: Pool creators can lock/unlock pools for emergency situations
+- **Slippage Protection**: Built-in slippage controls for safe trading
 
-This repository implements an Automated Market Maker (AMM) Decentralized Exchange (DEX) using the [Anchor](https://book.anchor-lang.com/) framework for Solana smart contracts. The project is primarily written in Rust (on-chain program) and TypeScript (off-chain client and test suite).
+## Built With
 
-The AMM DEX allows users to:
-- Create and manage liquidity pools
-- Trade between token pairs with no order book
-- Provide and withdraw liquidity
-- Mint and redeem LP (liquidity provider) tokens
-
----
-
-## Table of Contents
-
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Testing](#testing)
-- [Contributing](#contributing)
-- [License](#license)
-
----
-
-## Tech Stack
-
-- **Rust**: On-chain Solana program (smart contract)
-- **TypeScript**: Off-chain client, test scripts, interaction layer
-- **Anchor**: Solana smart contract framework
-- **Solana Web3.js**: Blockchain interaction
-- **@solana/spl-token**: Token utilities
-
----
-
-## Project Structure
-
-```
-amm-dex/
-├── programs/amm_dex/      # Rust source code for the on-chain program
-│   └── src/
-├── tests/                # TypeScript test scripts (via Anchor)
-│   └── amm_dex.ts
-├── migrations/           # Anchor migrations
-├── Anchor.toml           # Anchor configuration
-├── package.json          # Node.js project config
-├── tsconfig.json         # TypeScript config
-├── README.md             # Project documentation
-└── ...                   # Additional files and folders
-```
-
----
+- **Anchor Framework**: Solana program development framework
+- **Rust**: Smart contract programming language
+- **TypeScript**: Testing and client integration
+- **Constant Product Curve**: Mathematical model for automated market making
 
 ## Getting Started
 
 ### Prerequisites
 
-- [Rust](https://www.rust-lang.org/tools/install)
-- [Node.js](https://nodejs.org/)
-- [Yarn](https://yarnpkg.com/)
-- [Solana CLI](https://docs.solana.com/cli/install-solana-cli-tools)
-- [Anchor CLI](https://book.anchor-lang.com/chapter_2/installation.html)
+- Rust 1.88+
+- Solana CLI 2.2+
+- Anchor CLI 0.31+
+- Node.js 18+
+- Npm
 
 ### Installation
 
-1. **Clone the repository**
-   ```sh
-   git clone https://github.com/raunit-dev/amm-dex.git
-   cd amm-dex
-   ```
-
-2. **Install dependencies**
-   ```sh
-   yarn install
-   ```
-
-3. **Build the program**
-   ```sh
-   anchor build
-   ```
-
-4. **Deploy to localnet**
-   ```sh
-   anchor localnet
-   anchor deploy
-   ```
-
----
-
-## Testing
-
-Automated testing is implemented using TypeScript and Mocha. The test suite can be found in the `tests/` directory, primarily in `tests/amm_dex.ts`. Tests cover various aspects of initialization, pool creation, token minting, trading, and liquidity provision.
-
-**To run the tests:**
-```sh
-anchor test
-# or (as defined in Anchor.toml)
-yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts
+1. Clone the repository
+```bash
+git clone <repository-url>
+cd LokoSwap
 ```
 
-> **Status:**  
-> Testing is implemented and available. Additional tests and coverage improvements may be added in future updates.
+2. Install dependencies
+```bash
+yarn install
+```
 
----
+3. Build the program
+```bash
+anchor build
+```
 
-## Contributing
+4. Run tests
+```bash
+anchor test
+```
 
-Contributions are welcome! Please open issues or pull requests for suggestions, bugs, or improvements.
+## Usage
 
-1. Fork the repository
-2. Create a new branch
-3. Commit your changes
-4. Open a pull request
+### Creating a Pool
 
----
+Initialize a new liquidity pool with two tokens:
 
-## License
+```typescript
+await program.methods
+  .initialize(seed, fee, authority)
+  .accounts({
+    admin: admin.publicKey,
+    mintX: tokenA,
+    mintY: tokenB,
+    // ... other accounts
+  })
+  .rpc();
+```
 
-No license has been specified for this project. Please contact the repository owner for details on usage and licensing.
+### Adding Liquidity
 
----
+Provide liquidity to earn fees:
+
+```typescript
+await program.methods
+  .deposit(lpAmount, maxTokenA, maxTokenB)
+  .accounts({
+    user: user.publicKey,
+    // ... other accounts
+  })
+  .rpc();
+```
+
+### Swapping Tokens
+
+Exchange one token for another:
+
+```typescript
+await program.methods
+  .swap(amount, isTokenA, minimumOut)
+  .accounts({
+    user: user.publicKey,
+    // ... other accounts
+  })
+  .rpc();
+```
+
+## Security
+
+- Pool creators have exclusive authority to lock/unlock their pools
+- Slippage protection prevents unfavorable trades
+- All operations include proper authorization checks
+
+
+
 
 ## Acknowledgements
 
@@ -132,4 +113,4 @@ No license has been specified for this project. Please contact the repository ow
 
 ---
 
-> *This README was generated based on repository code and configuration. [View more details and the full codebase on GitHub.](https://github.com/raunit-dev/amm-dex)*
+

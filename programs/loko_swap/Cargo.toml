@@ -1,12 +1,12 @@
 [package]
-name = "amm_dex"
+name = "loko_swap"
 version = "0.1.0"
-description = "Created with Anchor"
+description = "LokoSwap - A DEX for Token 2022 transfer hooks with an AMM"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "amm_dex"
+name = "loko_swap"
 
 [features]
 default = []
@@ -22,5 +22,7 @@ idl-build = ["anchor-lang/idl-build","anchor-spl/idl-build"]
 anchor-lang = {version ="0.31.1", features = ["init-if-needed"]}
 anchor-spl = {version ="0.31.1", features = ["metadata"] }
 constant-product-curve = { git="https://github.com/deanmlittle/constant-product-curve.git" }
-
+solana-program = "2.2.1"
+spl-tlv-account-resolution = "0.10.0"
+spl-transfer-hook-interface = "0.10.0"
 

@@ -32,5 +32,20 @@ pub enum AmmError {
     NoAuthoritySet,
     #[msg("Invalid amount.")]
     InvalidAmount,
+    #[msg("Transfer hook extension not found.")]
+    TransferHookNotFound,
+    #[msg("Transfer fee extension not found.")]
+    TransferFeeNotFound,
+    #[msg("Identical mints not allowed")]
+    IdenticalMints,
+    #[msg("Invalid token program")]
+    InvalidTokenProgram,
+    #[msg("Unsupported token extension")]
+    UnsupportedExtension,
+    #[msg("Math Overflow")]
+    MathOverflow,
+    #[msg("Insufficient funds")]
+    InsufficientFunds,
+    
 }
 
