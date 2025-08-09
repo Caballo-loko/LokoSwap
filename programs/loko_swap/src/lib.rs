@@ -14,7 +14,7 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("GU862P9ksR5KiuJk7UNF4G2SXeKkjrYUJVUkFt6qe5KV");
+declare_id!("5zJ1miHbyLMqSEhZZxqQV3ECUzu6TPi1JhUSpwMFQVPh");
 
 #[program]
 pub mod loko_swap {
@@ -29,8 +29,8 @@ pub mod loko_swap {
     /// * `transfer_fee_basis_points` - Default transfer fee for new tokens (basis points)
     /// * `max_transfer_fee` - Maximum transfer fee in base units
     /// * `hook_program_id` - Optional default hook program for transfers
-    pub fn initialize(
-        ctx: Context<Initialize>,
+    pub fn initialize<'info>(
+        ctx: Context<'_, '_, 'info, 'info, Initialize<'info>>,
         seed: u64,
         fee: u16,
         authority: Option<Pubkey>,
@@ -45,7 +45,8 @@ pub mod loko_swap {
             transfer_fee_basis_points,
             max_transfer_fee,
             hook_program_id,
-            &ctx.bumps
+            &ctx.bumps,
+            ctx.remaining_accounts
         )
     }
 
@@ -58,8 +59,8 @@ pub mod loko_swap {
     /// * `max_y` - Maximum amount of token Y to deposit (including fees)
     /// 
     /// # Transfer Hook Support
-    /// Additional accounts required for transfer hooks should be passed via remaining_accounts.
-    /// The client must resolve these accounts before calling this instruction.
+    /// Token-2022 handles all hook account resolution automatically.
+    /// No additional accounts need to be provided via remaining_accounts.
     pub fn deposit<'info>(
         ctx: Context<'_, '_, 'info, 'info, Deposit<'info>>,
         amount: u64,
@@ -78,8 +79,8 @@ pub mod loko_swap {
     /// * `min_y` - Minimum amount of token Y to receive (after fees)
     /// 
     /// # Transfer Hook Support
-    /// Additional accounts required for transfer hooks should be passed via remaining_accounts.
-    /// The client must resolve these accounts before calling this instruction.
+    /// Token-2022 handles all hook account resolution automatically.
+    /// No additional accounts need to be provided via remaining_accounts.
     pub fn withdraw<'info>(
         ctx: Context<'_, '_, 'info, 'info, Withdraw<'info>>,
         amount: u64,
@@ -102,8 +103,8 @@ pub mod loko_swap {
     /// For output tokens with transfer fees: The AMM pays the fees to ensure user receives `min` amount
     /// 
     /// # Transfer Hook Support
-    /// Additional accounts required for transfer hooks should be passed via remaining_accounts.
-    /// The client must resolve these accounts before calling this instruction.
+    /// Token-2022 handles all hook account resolution automatically.
+    /// No additional accounts need to be provided via remaining_accounts.
     pub fn swap<'info>(
         ctx: Context<'_, '_, 'info, 'info, Swap<'info>>,
         amount: u64,

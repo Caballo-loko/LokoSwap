@@ -6,11 +6,10 @@ use anchor_spl::{
         transfer_checked_with_fee, TransferCheckedWithFee,
     },
 };
-
 use crate::{
     error::AmmError, 
     state::Config,
-    utils::token_utils::TokenExtensions
+    utils::token_utils::{TokenExtensions, invoke_transfer_checked_with_hooks},
 };
 use constant_product_curve::ConstantProduct;
 
@@ -86,7 +85,7 @@ impl<'info> Withdraw<'info> {
         amount: u64,
         min_x: u64,
         min_y: u64,
-        remaining_accounts: &[AccountInfo<'info>],
+        _remaining_accounts: &[AccountInfo<'info>],
     ) -> Result<()> {
         require!(amount > 0, AmmError::InvalidAmount);
         require!(self.user_lp.amount >= amount, AmmError::InsufficientFunds);
@@ -130,8 +129,8 @@ impl<'info> Withdraw<'info> {
         );
 
         // Perform withdrawals (transfer fees will be deducted automatically)
-        self.withdraw_tokens(true, amounts.x, remaining_accounts)?;
-        self.withdraw_tokens(false, amounts.y, remaining_accounts)?;
+        self.withdraw_tokens(true, amounts.x, _remaining_accounts)?;
+        self.withdraw_tokens(false, amounts.y, _remaining_accounts)?;
 
         // Burn LP tokens
         self.burn_lp_tokens(amount)?;
@@ -144,7 +143,7 @@ impl<'info> Withdraw<'info> {
         &mut self,
         is_x: bool,
         amount: u64,
-        remaining_accounts: &[AccountInfo<'info>],
+        _remaining_accounts: &[AccountInfo<'info>],
     ) -> Result<()> {
         let (from, to, mint) = if is_x {
             (
@@ -174,8 +173,9 @@ impl<'info> Withdraw<'info> {
         let extensions = TokenExtensions::new(&mint.to_account_info())?;
 
         match (extensions.has_transfer_fee, extensions.has_transfer_hook) {
-            // Token with transfer fee (no hook)
+            // Token 2022 with transfer fee only
             (true, false) => {
+                msg!("Withdraw: Using Token 2022 transfer_checked_with_fee (fee only, no hooks)");
                 let cpi_accounts = TransferCheckedWithFee {
                     source: from.to_account_info(),
                     destination: to.to_account_info(),
@@ -188,27 +188,43 @@ impl<'info> Withdraw<'info> {
                 transfer_checked_with_fee(ctx, amount, decimals, expected_fee)?;
             }
             
-            // Token with transfer hook (prioritized per PDF guidance)
-            (_, true) => {
-                let cpi_accounts = TransferChecked {
-                    from: from.to_account_info(),
-                    to: to.to_account_info(),
-                    authority: self.config.to_account_info(),
-                    mint: mint.to_account_info(),
-                };
+            // Token with BOTH transfer fee AND transfer hook - use Token-2022 
+            (true, true) => {
+                msg!("Withdraw: Using direct spl_token_2022::onchain::invoke_transfer_checked with PDA authority and hooks");
                 
-                let mut ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+                invoke_transfer_checked_with_hooks(
+                    &cpi_program.key(),
+                    from.to_account_info(),
+                    mint.to_account_info(),
+                    to.to_account_info(),
+                    self.config.to_account_info(),
+                    _remaining_accounts,
+                    amount,
+                    decimals,
+                    signer_seeds,
+                )?;
+            }
+            
+            // Token with transfer hook only - use Token-2022 
+            (false, true) => {
+                msg!("Withdraw: Using direct spl_token_2022::onchain::invoke_transfer_checked with PDA authority and hooks (no fees)");
                 
-                // Add remaining accounts for transfer hook
-                if !remaining_accounts.is_empty() {
-                    ctx = ctx.with_remaining_accounts(remaining_accounts.to_vec());
-                }
-                
-                transfer_checked(ctx, amount, decimals)?;
+                invoke_transfer_checked_with_hooks(
+                    &cpi_program.key(),
+                    from.to_account_info(),
+                    mint.to_account_info(),
+                    to.to_account_info(),
+                    self.config.to_account_info(),
+                    _remaining_accounts,
+                    amount,
+                    decimals,
+                    signer_seeds,
+                )?;
             }
             
             // Standard token (no extensions)
             (false, false) => {
+                msg!("Withdraw: Using standard transfer_checked (no extensions)");
                 let cpi_accounts = TransferChecked {
                     from: from.to_account_info(),
                     to: to.to_account_info(),

@@ -6,11 +6,10 @@ use anchor_spl::{
         transfer_checked_with_fee, TransferCheckedWithFee,
     },
 };
-
 use crate::{
     error::AmmError, 
     state::Config,
-    utils::token_utils::TokenExtensions
+    utils::token_utils::{TokenExtensions, invoke_transfer_checked_with_hooks},
 };
 use constant_product_curve::ConstantProduct;
 use constant_product_curve::LiquidityPair;
@@ -89,7 +88,7 @@ impl<'info> Swap<'info> {
         is_x: bool,
         amount: u64,
         min: u64,
-        remaining_accounts: &[AccountInfo<'info>]
+        _remaining_accounts: &[AccountInfo<'info>]
     ) -> Result<()> {
         // Manual validation replacing has_one constraints
         require!(self.config.mint_x == self.mint_x.key(), AmmError::InvalidToken);
@@ -115,12 +114,16 @@ impl<'info> Swap<'info> {
         let vault_x_amount = self.vault_x.amount;
         let vault_y_amount = self.vault_y.amount;
 
-        // Initialize the curve with current vault amounts
+        // Get dynamic fee from transfer hook (if available) or use default
+        let dynamic_fee = self.get_dynamic_fee(_remaining_accounts)
+            .unwrap_or(self.config.fee as u64) as u16;
+
+        // Initialize the curve with current vault amounts and dynamic fee
         let mut curve = ConstantProduct::init(
             vault_x_amount,
             vault_y_amount,
             self.mint_lp.supply,
-            self.config.fee,
+            dynamic_fee,
             None,
         )
         .map_err(|_| AmmError::MathOverflow)?;
@@ -150,9 +153,9 @@ impl<'info> Swap<'info> {
 
         // Perform the actual transfers
         // Input: user pays gross amount (including fees)
-        self.deposit_tokens(is_x, amount, remaining_accounts)?;
+        self.deposit_tokens(is_x, amount, _remaining_accounts)?;
         // Output: vault sends gross amount (user receives net after fees)
-        self.withdraw_tokens(!is_x, gross_output, remaining_accounts)?;
+        self.withdraw_tokens(!is_x, gross_output, _remaining_accounts)?;
 
         Ok(())
     }
@@ -162,7 +165,7 @@ impl<'info> Swap<'info> {
         &mut self,
         is_x: bool,
         amount: u64,
-        remaining_accounts: &[AccountInfo<'info>]
+        _remaining_accounts: &[AccountInfo<'info>],
     ) -> Result<()> {
         let (from, to, mint) = if is_x {
             (
@@ -185,7 +188,7 @@ impl<'info> Swap<'info> {
         let extensions = TokenExtensions::new(&mint.to_account_info())?;
 
         match (extensions.has_transfer_fee, extensions.has_transfer_hook) {
-            // Token with transfer fee (no hook)
+            // Token with transfer fee only
             (true, false) => {
                 let cpi_accounts = TransferCheckedWithFee {
                     source: from.to_account_info(),
@@ -199,23 +202,34 @@ impl<'info> Swap<'info> {
                 transfer_checked_with_fee(ctx, amount, decimals, expected_fee)?;
             }
             
-            // Token with transfer hook (prioritized per PDF guidance)
-            (_, true) => {
-                let cpi_accounts = TransferChecked {
-                    from: from.to_account_info(),
-                    to: to.to_account_info(),
-                    authority: self.user.to_account_info(),
-                    mint: mint.to_account_info(),
-                };
-                
-                let mut ctx = CpiContext::new(cpi_program, cpi_accounts);
-                
-                // Add remaining accounts for transfer hook
-                if !remaining_accounts.is_empty() {
-                    ctx = ctx.with_remaining_accounts(remaining_accounts.to_vec());
-                }
-                
-                transfer_checked(ctx, amount, decimals)?;
+            // Token with BOTH transfer fee AND transfer hook - use direct Token-2022 call
+            (true, true) => {
+                invoke_transfer_checked_with_hooks(
+                    &cpi_program.key(),
+                    from.to_account_info(),
+                    mint.to_account_info(),
+                    to.to_account_info(),
+                    self.user.to_account_info(),
+                    _remaining_accounts,
+                    amount,
+                    decimals,
+                    &[], // No signer seeds needed for user authority
+                )?;
+            }
+            
+            // Token with transfer hook only - use direct Token-2022 call
+            (false, true) => {
+                invoke_transfer_checked_with_hooks(
+                    &cpi_program.key(),
+                    from.to_account_info(),
+                    mint.to_account_info(),
+                    to.to_account_info(),
+                    self.user.to_account_info(),
+                    _remaining_accounts,
+                    amount,
+                    decimals,
+                    &[], // No signer seeds needed for user authority
+                )?;
             }
             
             // Standard token (no extensions)
@@ -238,7 +252,7 @@ impl<'info> Swap<'info> {
         &mut self,
         is_x: bool,
         amount: u64,
-        remaining_accounts: &[AccountInfo<'info>]
+        _remaining_accounts: &[AccountInfo<'info>],
     ) -> Result<()> {
         let (from, to, mint) = if is_x {
             (
@@ -268,7 +282,7 @@ impl<'info> Swap<'info> {
         let extensions = TokenExtensions::new(&mint.to_account_info())?;
 
         match (extensions.has_transfer_fee, extensions.has_transfer_hook) {
-            // Token with transfer fee (no hook)
+            // Token with transfer fee only
             (true, false) => {
                 let cpi_accounts = TransferCheckedWithFee {
                     source: from.to_account_info(),
@@ -282,23 +296,34 @@ impl<'info> Swap<'info> {
                 transfer_checked_with_fee(ctx, amount, decimals, expected_fee)?;
             }
             
-            // Token with transfer hook (prioritized per PDF guidance)
-            (_, true) => {
-                let cpi_accounts = TransferChecked {
-                    from: from.to_account_info(),
-                    to: to.to_account_info(),
-                    authority: self.config.to_account_info(),
-                    mint: mint.to_account_info(),
-                };
-                
-                let mut ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-                
-                // Add remaining accounts for transfer hook
-                if !remaining_accounts.is_empty() {
-                    ctx = ctx.with_remaining_accounts(remaining_accounts.to_vec());
-                }
-                
-                transfer_checked(ctx, amount, decimals)?;
+            // Token with BOTH transfer fee AND transfer hook - use direct Token-2022 call
+            (true, true) => {
+                invoke_transfer_checked_with_hooks(
+                    &cpi_program.key(),
+                    from.to_account_info(),
+                    mint.to_account_info(),
+                    to.to_account_info(),
+                    self.config.to_account_info(),
+                    _remaining_accounts,
+                    amount,
+                    decimals,
+                    signer_seeds,
+                )?;
+            }
+            
+            // Token with transfer hook only - use direct Token-2022 call
+            (false, true) => {
+                invoke_transfer_checked_with_hooks(
+                    &cpi_program.key(),
+                    from.to_account_info(),
+                    mint.to_account_info(),
+                    to.to_account_info(),
+                    self.config.to_account_info(),
+                    _remaining_accounts,
+                    amount,
+                    decimals,
+                    signer_seeds,
+                )?;
             }
             
             // Standard token (no extensions)
@@ -316,4 +341,82 @@ impl<'info> Swap<'info> {
 
         Ok(())
     }
+
+    /// Reads dynamic fee from transfer hook fee stats account
+    /// Returns None if hook is not available or fee stats cannot be read
+    fn get_dynamic_fee(&self, remaining_accounts: &[AccountInfo]) -> Option<u64> {
+        // Check which token has transfer hook extension
+        let x_extensions = TokenExtensions::new(&self.mint_x.to_account_info()).ok()?;
+        let y_extensions = TokenExtensions::new(&self.mint_y.to_account_info()).ok()?;
+        
+        let hook_program_id = if x_extensions.has_transfer_hook {
+            x_extensions.transfer_hook_program_id?
+        } else if y_extensions.has_transfer_hook {
+            y_extensions.transfer_hook_program_id?
+        } else {
+            return None; // No hook token in this pool
+        };
+
+        // Verify hook program is whitelisted
+        if let Some(expected_hook_program) = self.config.default_hook_program {
+            if hook_program_id != expected_hook_program {
+                return None; // Unauthorized hook program
+            }
+        }
+
+        // Look for fee stats account in remaining accounts (index 7 based on hook structure)
+        if remaining_accounts.len() >= 8 {
+            if let Some(fee_stats_account) = remaining_accounts.get(7) {
+                if let Ok(fee_stats) = self.parse_dynamic_fee_stats(fee_stats_account) {
+                    let dynamic_fee_bp = fee_stats.current_fee_basis_points as u64;
+                    msg!("Dynamic fee: {}bp from hook {}", dynamic_fee_bp, hook_program_id);
+                    return Some(dynamic_fee_bp);
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Parse dynamic fee stats from account data
+    /// This is a simplified parser - in production would use proper deserialization
+    fn parse_dynamic_fee_stats(&self, account: &AccountInfo) -> Result<DynamicFeeStatsView> {
+        let data = account.try_borrow_data()?;
+        
+        // Skip discriminator (8 bytes) and parse key fields
+        if data.len() < 32 {
+            return Err(AmmError::InvalidAccountData.into());
+        }
+
+        // Parse key fields from the account data
+        // This is a simplified version - real implementation would use proper Borsh deserialization
+        let current_fee_basis_points = u16::from_le_bytes([data[32], data[33]]);
+        let base_fee_basis_points = u16::from_le_bytes([data[34], data[35]]);
+        
+        // Parse recent transfers array (simplified)
+        let mut recent_transfers = [0u64; 6];
+        for i in 0..6 {
+            let offset = 44 + i * 8;
+            if data.len() >= offset + 8 {
+                recent_transfers[i] = u64::from_le_bytes([
+                    data[offset], data[offset+1], data[offset+2], data[offset+3],
+                    data[offset+4], data[offset+5], data[offset+6], data[offset+7]
+                ]);
+            }
+        }
+
+        Ok(DynamicFeeStatsView {
+            current_fee_basis_points,
+            base_fee_basis_points,
+            recent_transfers,
+        })
+    }
+}
+
+/// Simplified view of dynamic fee stats for parsing
+#[derive(Debug)]
+struct DynamicFeeStatsView {
+    pub current_fee_basis_points: u16,
+    pub base_fee_basis_points: u16,
+    pub recent_transfers: [u64; 6],
 }

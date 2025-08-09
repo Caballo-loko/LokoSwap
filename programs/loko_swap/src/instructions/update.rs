@@ -21,7 +21,7 @@ pub struct Update<'info> {
     pub config: Account<'info, Config>,
 }
 
-/// Account structure for collecting transfer fees from Token-2022 mints
+/// Account structure for collecting transfer fees from Token-2022 mints 
 #[derive(Accounts)]
 pub struct CollectFees<'info> {
     #[account(mut)]
@@ -45,7 +45,6 @@ pub struct CollectFees<'info> {
     pub token_program: Interface<'info, TokenInterface>,
     // remaining_accounts: accounts from which to withdraw fees
 }
-
 impl<'info> Update<'info> {
     pub fn lock(&mut self) -> Result<()> {
         require!(

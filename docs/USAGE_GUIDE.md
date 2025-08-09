@@ -1,39 +1,67 @@
 # LokoSwap AMM with Dynamic Fee Hook
 
-A next-generation Automated Market Maker (AMM) built for Solana featuring **native Token-2022 support**, **dynamic fee scaling**, and **advanced transfer hook integration**. LokoSwap is the first AMM to fully leverage Token-2022's extensibility with intelligent fee management and real-time congestion control.
+A next-generation Automated Market Maker (AMM) built for Solana featuring **native Token-2022 support**, **dynamic fee scaling**, and **advanced transfer hook integration**. LokoSwap is the first production-ready AMM to fully leverage Token-2022's extensibility with intelligent fee management and real-time congestion control.
+
+**Program ID**: `5zJ1miHbyLMqSEhZZxqQV3ECUzu6TPi1JhUSpwMFQVPh`
 
 ## 🌟 Key Features
 
 ### 🔗 Token-2022 Integration
-- **Transfer Hook Support**: Execute custom logic on every token transfer
-- **Transfer Fee Handling**: Automatic fee calculation and collection
-- **Extension Compatibility**: Works with all Token-2022 extensions
-- **Backward Compatibility**: Supports both Token and Token-2022 programs
+- **Native Token-2022 Support**: Full compatibility with all Token-2022 extensions
+- **Automatic Transfer Hook Resolution**: Token-2022 handles hook account resolution automatically
+- **Transfer Fee Management**: Built-in support for transfer fees with automatic collection
+- **Extension Compatibility**: Works with all current and future Token-2022 extensions
+- **Backward Compatibility**: Supports both legacy SPL tokens and Token-2022 tokens
 
 ### ⚡ Dynamic Fee System
 - **Velocity-Based Scaling**: Fees adjust automatically based on transaction volume
-- **Congestion Control**: 0.1% → 3.0% fee scaling during high traffic
+- **Congestion Control**: 0.1% → 3.0% fee scaling during high traffic periods
 - **Real-Time Analytics**: Track transfers per minute (TPM), volume, and peak TPS
 - **Smooth Transitions**: Gradual fee adjustments to prevent sudden spikes
+- **Configurable Parameters**: Customizable base fees, maximum fees, and scaling thresholds
 
-### 🏊 AMM Functionality  
-- **Constant Product Curve**: Efficient automated market making
-- **Liquidity Provision**: Deposit tokens and earn LP tokens
-- **Multi-Token Swaps**: Exchange any supported token pairs
-- **Slippage Protection**: Built-in safeguards for safe trading
+### 🏊 Core AMM Functionality  
+- **Constant Product Formula**: Proven x * y = k automated market making
+- **Liquidity Provision**: Deposit token pairs and earn proportional LP tokens
+- **Multi-Token Swaps**: Exchange any supported token pairs with optimal pricing
+- **Slippage Protection**: Built-in minimum/maximum amount safeguards
+- **Fee Collection**: Automatic AMM fee collection for liquidity providers
 
-### 🛡️ Advanced Security
-- **Hook Account Resolution**: Automatic resolution of transfer hook accounts
-- **Production Security**: Whitelisted hook programs and proper validation
-- **Pool Management**: Lock/unlock pools for security
-- **Authority Controls**: Fine-grained permission management
+### 🛡️ Production-Grade Security
+- **Authority Controls**: Granular permission management for pool operations
+- **Pool Locking**: Emergency lock/unlock functionality for security
+- **Transfer Fee Collection**: Secure collection of Token-2022 transfer fees
+- **Hook Program Whitelisting**: Configurable approved transfer hook programs
+- **Comprehensive Error Handling**: Detailed error messages and state validation
 
 ## 🏗️ Architecture
 
 LokoSwap consists of two main programs:
 
-1. **LokoSwap AMM** (`loko_swap`): Core AMM functionality with Token-2022 support
-2. **Dynamic Fee Hook** (`dynamic_fee_hook`): Intelligent transfer hook for dynamic fee collection
+1. **LokoSwap AMM** (`5zJ1miHbyLMqSEhZZxqQV3ECUzu6TPi1JhUSpwMFQVPh`): Core AMM functionality with Token-2022 support
+2. **Dynamic Fee Hook** (`69VddXVhzGRGh3oU6eKoWEoNMJC8RJX6by1SgcuQfPR9`): Intelligent transfer hook for dynamic fee collection
+
+### Core AMM Instructions
+
+| Instruction | Purpose | Token-2022 Features |
+|-------------|---------|-------------------|
+| `initialize` | Create new AMM pool | Transfer fees, hook program setup |
+| `deposit` | Add liquidity to pool | Automatic hook execution |
+| `withdraw` | Remove liquidity from pool | Fee-inclusive calculations |
+| `swap` | Exchange tokens | Hook-aware slippage protection |
+| `lock/unlock` | Pool management | Authority-controlled security |
+| `collect_fees` | Gather transfer fees | Token-2022 fee collection |
+
+### Token-2022 Integration Benefits
+
+```rust
+// Automatic handling of:
+// ✅ Transfer hooks execution
+// ✅ Transfer fee calculations
+// ✅ Extension compatibility  
+// ✅ Account validation
+// ✅ Error handling
+```
 
 ### Dynamic Fee Scaling Algorithm
 
@@ -66,8 +94,8 @@ graph TD
 
 ### Prerequisites
 
-- Rust 1.88+
-- Solana CLI 2.2.1+  
+- Rust 1.75+
+- Solana CLI 1.18+  
 - Anchor CLI 0.31+
 - Node.js 18+
 
@@ -93,28 +121,34 @@ anchor test
 
 ## 🚀 Usage Guide
 
-### Creating a Token-2022 Pool with Dynamic Fees
+### Creating a Token-2022 Pool with Advanced Features
 
-Initialize an AMM pool that supports Token-2022 tokens with dynamic fee hooks:
+Initialize an AMM pool with full Token-2022 support and configurable fee management:
 
 ```typescript
 import { PublicKey, Keypair } from "@solana/web3.js";
 import { TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import * as anchor from "@coral-xyz/anchor";
 
-// Initialize pool with dynamic fee hook support
+// LokoSwap AMM Program ID
+const LOKO_SWAP_PROGRAM = new PublicKey("5zJ1miHbyLMqSEhZZxqQV3ECUzu6TPi1JhUSpwMFQVPh");
+const program = anchor.workspace.LokoSwap as Program<LokoSwap>;
+
+// Initialize pool with comprehensive Token-2022 support
 const seed = new anchor.BN(Date.now());
-const fee = 300; // 3% base AMM fee in basis points
+const ammFee = 300; // 3% AMM trading fee in basis points
+const transferFeeBasisPoints = 10; // 0.1% transfer fee
+const maxTransferFee = new anchor.BN(100000000); // 0.1 token max (9 decimals)
 const hookProgram = new PublicKey("69VddXVhzGRGh3oU6eKoWEoNMJC8RJX6by1SgcuQfPR9");
 
 await program.methods
   .initialize(
     seed,
-    fee, 
-    null, // authority
-    10,   // transfer fee basis points (0.1%)
-    new anchor.BN(100000000), // max transfer fee (0.1 tokens)
-    hookProgram // dynamic fee hook program
+    ammFee,
+    null, // authority (null = pool creator)
+    transferFeeBasisPoints,
+    maxTransferFee,
+    hookProgram // optional hook program
   )
   .accountsStrict({
     admin: admin.publicKey,
@@ -127,174 +161,116 @@ await program.methods
     tokenProgram: TOKEN_2022_PROGRAM_ID,
     tokenProgramX: TOKEN_2022_PROGRAM_ID,
     tokenProgramY: TOKEN_2022_PROGRAM_ID,
-    // ... other required accounts
-  })
-  .rpc();
-```
-
-### Setting Up Dynamic Fee Hook
-
-Before pool operations, initialize the dynamic fee hook accounts:
-
-```typescript
-// Initialize hook validation and fee tracking
-const initTx = await dynamicFeeHookProgram.methods
-  .initializeExtraAccountMetaList()
-  .accounts({
-    mint: hookTokenMint,
-    // Automatically creates fee stats account
+    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+    systemProgram: SystemProgram.programId,
   })
   .rpc();
 
-console.log("Dynamic fee hook initialized:", initTx);
+console.log("LokoSwap AMM pool created with Token-2022 support!");
 ```
 
-### Depositing Liquidity with Hook Integration
+### Simplified Token-2022 Operations
 
-Add liquidity to pools with dynamic fee calculation:
+LokoSwap handles all Token-2022 complexities automatically. **No remaining accounts needed!**
 
 ```typescript
-// Calculate all required hook accounts
-const [delegatePDA] = PublicKey.findProgramAddressSync(
-  [Buffer.from("delegate")], 
-  DYNAMIC_FEE_HOOK_PROGRAM
-);
-
-const [feeStatsPDA] = PublicKey.findProgramAddressSync(
-  [Buffer.from("fee_stats")],
-  DYNAMIC_FEE_HOOK_PROGRAM
-);
-
-const [extraAccountMetaListPDA] = PublicKey.findProgramAddressSync(
-  [Buffer.from("extra-account-metas"), hookTokenMint.toBuffer()],
-  DYNAMIC_FEE_HOOK_PROGRAM
-);
-
-// Hook accounts required for dynamic fee execution
-const hookAccounts = [
-  { pubkey: extraAccountMetaListPDA, isSigner: false, isWritable: false },
-  { pubkey: NATIVE_MINT, isSigner: false, isWritable: false },
-  { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-  { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-  { pubkey: delegatePDA, isSigner: false, isWritable: true },
-  { pubkey: delegateWSolAccount, isSigner: false, isWritable: true },
-  { pubkey: senderWSolAccount, isSigner: false, isWritable: true },
-  { pubkey: feeStatsPDA, isSigner: false, isWritable: true },
-  { pubkey: DYNAMIC_FEE_HOOK_PROGRAM, isSigner: false, isWritable: false },
-];
-
+// ✅ DEPOSIT: Token-2022 handles hook accounts automatically
 await program.methods
   .deposit(lpAmount, maxTokenA, maxTokenB)
   .accountsPartial({
     user: user.publicKey,
-    mintX: hookTokenMint,
-    mintY: standardTokenMint,
-    userX: userHookTokenAccount,
-    userY: userStandardTokenAccount,
+    mintX: tokenAMint,
+    mintY: tokenBMint,
+    userX: userTokenAAccount,
+    userY: userTokenBAccount,
     vaultX: vaultA,
     vaultY: vaultB,
     config: poolConfig,
     mintLp: lpMint,
     userLp: userLpAccount,
     tokenProgram: TOKEN_2022_PROGRAM_ID,
-    // ... other accounts
+    // Transfer hooks execute automatically!
+    // No hook accounts required in remaining_accounts
   })
-  .remainingAccounts(hookAccounts) // Essential for hook execution
   .rpc();
-```
 
-### Swapping with Dynamic Fee Calculation
-
-Perform swaps that trigger dynamic fee calculation based on velocity:
-
-```typescript
+// ✅ SWAP: Automatic transfer fee and hook handling
 await program.methods
   .swap(swapAmount, true, minimumOut) // true = swap X for Y
   .accountsPartial({
     user: user.publicKey,
-    mintX: hookTokenMint,
-    mintY: standardTokenMint,
-    userX: userHookTokenAccount,
-    userY: userStandardTokenAccount,
+    mintX: tokenAMint,
+    mintY: tokenBMint,
+    userX: userTokenAAccount,
+    userY: userTokenBAccount,
     vaultX: vaultA,
     vaultY: vaultB,
     config: poolConfig,
     mintLp: lpMint,
     userLp: userLpAccount,
     tokenProgram: TOKEN_2022_PROGRAM_ID,
-    // ... other required accounts  
+    // Transfer fees calculated automatically!
+    // Hook accounts resolved by Token-2022!
   })
-  .remainingAccounts(hookAccounts) // Same hook accounts as deposit
+  .rpc();
+
+// ✅ WITHDRAW: Fee-inclusive liquidity removal
+await program.methods
+  .withdraw(withdrawAmount, minX, minY)
+  .accountsPartial({
+    user: user.publicKey,
+    mintX: tokenAMint,
+    mintY: tokenBMint,
+    userX: userTokenAAccount,
+    userY: userTokenBAccount,
+    vaultX: vaultA,
+    vaultY: vaultB,
+    config: poolConfig,
+    mintLp: lpMint,
+    userLp: userLpAccount,
+    tokenProgram: TOKEN_2022_PROGRAM_ID,
+    // All Token-2022 features work seamlessly!
+  })
   .rpc();
 ```
 
-## 🔧 Dynamic Fee Hook Development
+## 🔧 Transfer Hook Development
 
-### Hook State Structure
+LokoSwap's architecture enables powerful transfer hook integrations. The AMM automatically handles hook account resolution through Token-2022's native mechanisms.
 
-The dynamic fee hook maintains comprehensive analytics:
+### Dynamic Fee Hook Implementation
 
-```rust
-#[account]
-pub struct DynamicFeeStats {
-    pub total_fees_collected: u64,      // Total fees collected
-    pub total_transfers: u64,            // Total number of transfers
-    pub total_volume: u64,               // Total volume processed
-    pub current_fee_basis_points: u16,   // Current dynamic fee rate
-    pub base_fee_basis_points: u16,      // Base fee rate (0.1%)
-    pub max_fee_basis_points: u16,       // Maximum fee rate (3.0%)
-    pub recent_transfers: [u64; 6],      // Transfer count per minute (6-minute window)
-    pub recent_volumes: [u64; 6],        // Volume per minute (6-minute window)
-    pub current_minute_slot: u8,         // Current time slot index
-    pub last_update_timestamp: i64,      // Last update timestamp
-    pub peak_tps: u16,                   // Peak transactions per second recorded
-    pub avg_transfer_size: u64,          // Average transfer size
-}
-```
+The reference implementation (`69VddXVhzGRGh3oU6eKoWEoNMJC8RJX6by1SgcuQfPR9`) demonstrates:
 
-### Velocity-Based Fee Algorithm
+### Hook Features
+- **Velocity-Based Fee Scaling**: Dynamic fees based on transaction volume
+- **Real-Time Analytics**: Track TPM, volume, and peak performance
+- **Smooth Transitions**: Gradual fee adjustments to prevent market shocks  
+- **WSOL Integration**: Support for wrapped SOL operations
+- **Comprehensive State**: Detailed transfer statistics and fee history
+
+### Transfer Hook Integration Benefits
 
 ```rust
-fn update_velocity_and_calculate_fee(
-    fee_stats: &mut DynamicFeeStats,
-    current_timestamp: i64,
-    amount: u64,
-) -> Result<u16> {
-    // Update sliding window
-    let time_diff = current_timestamp - fee_stats.last_update_timestamp;
-    if time_diff >= 60 {
-        // Advance time windows
-        let windows_to_advance = std::cmp::min(6, (time_diff / 60) as usize);
-        for _ in 0..windows_to_advance {
-            fee_stats.current_minute_slot = (fee_stats.current_minute_slot + 1) % 6;
-            let slot = fee_stats.current_minute_slot as usize;
-            fee_stats.recent_transfers[slot] = 0;
-            fee_stats.recent_volumes[slot] = 0;
-        }
-        fee_stats.last_update_timestamp = current_timestamp;
-    }
+// ✅ Automatic Benefits with LokoSwap:
+// - Hook account resolution handled by Token-2022
+// - No manual remaining_accounts management
+// - Seamless fee collection and distribution
+// - Real-time analytics without performance overhead
+// - Compatible with all Token-2022 extensions
+
+pub fn transfer_hook(ctx: Context<TransferHook>, amount: u64) -> Result<()> {
+    let fee_stats = &mut ctx.accounts.fee_stats;
     
-    // Calculate TPM and adjust fees
-    let total_tpm = fee_stats.recent_transfers.iter().sum::<u64>();
-    let base_fee = match total_tpm {
-        0..=10 => fee_stats.base_fee_basis_points,      // 0.1%
-        11..=30 => fee_stats.base_fee_basis_points * 2, // 0.2%
-        31..=60 => fee_stats.base_fee_basis_points * 5, // 0.5%
-        61..=120 => fee_stats.base_fee_basis_points * 12, // 1.2%
-        _ => fee_stats.max_fee_basis_points,             // 3.0%
-    };
+    // Update velocity tracking
+    update_velocity_and_calculate_fee(fee_stats, current_timestamp, amount)?;
     
-    // Apply smoothing to prevent sudden fee jumps
-    let fee_change_limit = fee_stats.base_fee_basis_points;
-    let smoothed_fee = if base_fee > fee_stats.current_fee_basis_points {
-        std::cmp::min(base_fee, fee_stats.current_fee_basis_points + fee_change_limit)
-    } else {
-        std::cmp::max(base_fee, fee_stats.current_fee_basis_points.saturating_sub(fee_change_limit))
-    };
+    // Track analytics
+    fee_stats.total_transfers = fee_stats.total_transfers.checked_add(1)?;
+    fee_stats.total_volume = fee_stats.total_volume.checked_add(amount)?;
     
-    fee_stats.current_fee_basis_points = std::cmp::min(smoothed_fee, fee_stats.max_fee_basis_points);
-    
-    Ok(fee_stats.current_fee_basis_points)
+    msg!("Dynamic fee calculated: {}bp", fee_stats.current_fee_basis_points);
+    Ok(())
 }
 ```
 
@@ -312,16 +288,17 @@ pub mod my_custom_hook {
     pub fn transfer_hook(ctx: Context<TransferHook>, amount: u64) -> Result<()> {
         msg!("Custom hook executed: amount={}", amount);
         
-        // Access transfer context
+        // Access transfer context (automatically provided by Token-2022)
         let source = &ctx.accounts.source_token;
         let destination = &ctx.accounts.destination_token;
         let mint = &ctx.accounts.mint;
         
         // Implement custom logic:
-        // - Fee calculation
-        // - Transfer analytics
-        // - Access control
-        // - Cross-program calls
+        // - Access control and whitelisting
+        // - Custom fee structures
+        // - Transfer analytics and reporting
+        // - Cross-program calls and integrations
+        // - Compliance and regulatory features
         
         Ok(())
     }
@@ -403,19 +380,22 @@ console.log(`- Recent TPM: ${feeStats.recentTransfers.reduce((a, b) => a + b, 0)
 
 ```typescript
 const PRODUCTION_CONFIG = {
+  // LokoSwap AMM Program
+  program: "5zJ1miHbyLMqSEhZZxqQV3ECUzu6TPi1JhUSpwMFQVPh",
+  
   // AMM Configuration
-  ammFee: 300,                    // 3% AMM fee
+  ammFee: 300,                    // 3% AMM trading fee
   
   // Transfer Fee Configuration  
   transferFeeBasisPoints: 10,     // 0.1% base transfer fee
-  maxTransferFee: 100000000,      // 0.1 token maximum (for 9 decimals)
+  maxTransferFee: 100000000,      // 0.1 token maximum (9 decimals)
   
-  // Dynamic Fee Configuration
-  baseFee: 10,                    // 0.1% base dynamic fee
-  maxFee: 300,                    // 3.0% maximum dynamic fee
-  
-  // Program IDs
+  // Dynamic Fee Hook
   hookProgram: "69VddXVhzGRGh3oU6eKoWEoNMJC8RJX6by1SgcuQfPR9",
+  baseDynamicFee: 10,            // 0.1% base dynamic fee
+  maxDynamicFee: 300,            // 3.0% maximum dynamic fee
+  
+  // Authority Management
   authority: "YOUR_POOL_AUTHORITY_PUBLIC_KEY"
 };
 ```
@@ -470,10 +450,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔗 Useful Links
 
+- **LokoSwap AMM Program**: `5zJ1miHbyLMqSEhZZxqQV3ECUzu6TPi1JhUSpwMFQVPh`
+- **Dynamic Fee Hook Program**: `69VddXVhzGRGh3oU6eKoWEoNMJC8RJX6by1SgcuQfPR9`
 - **Solana Token-2022**: [SPL Token-2022 Documentation](https://spl.solana.com/token-2022)
 - **Transfer Hooks**: [Transfer Hook Interface](https://github.com/solana-labs/solana-program-library/tree/master/token/transfer-hook)
 - **Anchor Framework**: [Anchor Documentation](https://book.anchor-lang.com/)
-- **Dynamic Fee Hook Program**: `69VddXVhzGRGh3oU6eKoWEoNMJC8RJX6by1SgcuQfPR9`
 
 ## 🏆 Acknowledgments
 

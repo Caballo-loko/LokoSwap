@@ -6,11 +6,10 @@ use anchor_spl::{
         transfer_checked_with_fee, TransferCheckedWithFee,
     },
 };
-
 use crate::{
     error::AmmError, 
     state::Config,
-    utils::token_utils::TokenExtensions
+    utils::token_utils::{TokenExtensions, invoke_transfer_checked_with_hooks},
 };
 use constant_product_curve::ConstantProduct;
 
@@ -86,7 +85,7 @@ impl<'info> Deposit<'info> {
         amount: u64,
         max_x: u64,
         max_y: u64,
-        remaining_accounts: &[AccountInfo<'info>],
+        _remaining_accounts: &[AccountInfo<'info>],
     ) -> Result<()> {
         require!(self.config.locked == false, AmmError::PoolLocked);
         require!(amount > 0, AmmError::InvalidAmount);
@@ -144,8 +143,8 @@ impl<'info> Deposit<'info> {
         require!(gross_x <= max_x && gross_y <= max_y, AmmError::SlippageExceeded);
 
         // Perform transfers (these will deduct fees automatically)
-        self.deposit_tokens(true, gross_x, remaining_accounts)?;
-        self.deposit_tokens(false, gross_y, remaining_accounts)?;
+        self.deposit_tokens(true, gross_x, _remaining_accounts)?;
+        self.deposit_tokens(false, gross_y, _remaining_accounts)?;
 
         // Mint LP tokens based on the net amounts that reached the vault
         self.mint_lp_tokens(amount)
@@ -156,7 +155,7 @@ impl<'info> Deposit<'info> {
         &mut self,
         is_x: bool,
         amount: u64,
-        remaining_accounts: &[AccountInfo<'info>],
+        _remaining_accounts: &[AccountInfo<'info>],
     ) -> Result<()> {
         let (from, to, mint) = if is_x {
             (
@@ -179,7 +178,7 @@ impl<'info> Deposit<'info> {
         let extensions = TokenExtensions::new(&mint.to_account_info())?;
 
         match (extensions.has_transfer_fee, extensions.has_transfer_hook) {
-            // Token with transfer fee
+            // Token with transfer fee only
             (true, false) => {
                 let cpi_accounts = TransferCheckedWithFee {
                     source: from.to_account_info(),
@@ -193,25 +192,34 @@ impl<'info> Deposit<'info> {
                 transfer_checked_with_fee(ctx, amount, decimals, expected_fee)?;
             }
             
-            // Token with transfer hook (prioritized per PDF guidance)
-            (_, true) => {
-                let cpi_accounts = TransferChecked {
-                    from: from.to_account_info(),
-                    to: to.to_account_info(),
-                    authority: self.user.to_account_info(),
-                    mint: mint.to_account_info(),
-                };
-                
-                let mut ctx = CpiContext::new(cpi_program, cpi_accounts);
-                
-                // Add remaining accounts for transfer hook
-                // The hook accounts should be pre-resolved on the client side
-                // and passed in through remaining_accounts
-                if !remaining_accounts.is_empty() {
-                    ctx = ctx.with_remaining_accounts(remaining_accounts.to_vec());
-                }
-                
-                transfer_checked(ctx, amount, decimals)?;
+            // Token with BOTH transfer fee AND transfer hook - use direct Token-2022 call
+            (true, true) => {
+                invoke_transfer_checked_with_hooks(
+                    &cpi_program.key(),
+                    from.to_account_info(),
+                    mint.to_account_info(),
+                    to.to_account_info(),
+                    self.user.to_account_info(),
+                    _remaining_accounts,
+                    amount,
+                    decimals,
+                    &[], // No signer seeds needed for user authority
+                )?;
+            }
+            
+            // Token with transfer hook only - use direct Token-2022 call
+            (false, true) => {
+                invoke_transfer_checked_with_hooks(
+                    &cpi_program.key(),
+                    from.to_account_info(),
+                    mint.to_account_info(),
+                    to.to_account_info(),
+                    self.user.to_account_info(),
+                    _remaining_accounts,
+                    amount,
+                    decimals,
+                    &[], // No signer seeds needed for user authority
+                )?;
             }
             
             // Standard token (no extensions)

@@ -625,6 +625,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dynamic_fee_hook"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "solana-program",
+ "spl-tlv-account-resolution 0.10.0",
+ "spl-transfer-hook-interface 0.10.0",
+]
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

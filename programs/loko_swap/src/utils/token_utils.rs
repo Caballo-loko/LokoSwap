@@ -5,6 +5,7 @@ use anchor_spl::token_interface::spl_token_2022::{
         transfer_fee::TransferFeeConfig, transfer_hook::TransferHook
     },
     state::Mint,
+    onchain::invoke_transfer_checked,
 };
 use crate::error::AmmError;
 
@@ -93,8 +94,6 @@ pub fn calculate_net_amount(gross_amount: u64, fee_config: &TransferFeeConfig) -
     let fee = calculate_transfer_fee(gross_amount, fee_config);
     gross_amount.saturating_sub(fee)
 }
-
-// Removed get_mint_extension_state to avoid lifetime issues - use direct unpacking instead
 
 /// Check if a mint is a Token-2022 mint
 pub fn is_token_2022_mint(mint_account: &AccountInfo) -> bool {
@@ -247,6 +246,36 @@ pub fn calculate_gross_for_net_direct(mint_account: &AccountInfo, net_amount: u6
         .unwrap() as u64;
     
     Ok(gross)
+}
+
+/// Direct Token-2022 transfer with hook support
+pub fn invoke_transfer_checked_with_hooks<'info>(
+    token_program_key: &Pubkey,
+    source: AccountInfo<'info>,
+    mint: AccountInfo<'info>,
+    destination: AccountInfo<'info>,
+    authority: AccountInfo<'info>,
+    remaining_accounts: &[AccountInfo<'info>],
+    amount: u64,
+    decimals: u8,
+    signer_seeds: &[&[&[u8]]],
+) -> Result<()> {
+    msg!("Using direct spl_token_2022::onchain::invoke_transfer_checked with hook support");
+    
+    invoke_transfer_checked(
+        token_program_key,
+        source,
+        mint,
+        destination,
+        authority,
+        remaining_accounts,
+        amount,
+        decimals,
+        signer_seeds,
+    ).map_err(move |e| {
+        msg!("Direct Token-2022 transfer with hooks failed: {:?}", e);
+        anchor_lang::error::Error::from(e)
+    })
 }
 
 #[cfg(test)]

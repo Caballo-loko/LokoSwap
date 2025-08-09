@@ -5,10 +5,12 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-loko_swap = "GU862P9ksR5KiuJk7UNF4G2SXeKkjrYUJVUkFt6qe5KV"
+loko_swap = "5zJ1miHbyLMqSEhZZxqQV3ECUzu6TPi1JhUSpwMFQVPh"
+dynamic_fee_hook = "69VddXVhzGRGh3oU6eKoWEoNMJC8RJX6by1SgcuQfPR9"
 
 [programs.devnet]
-loko_swap = "GU862P9ksR5KiuJk7UNF4G2SXeKkjrYUJVUkFt6qe5KV"
+loko_swap = "5zJ1miHbyLMqSEhZZxqQV3ECUzu6TPi1JhUSpwMFQVPh"
+dynamic_fee_hook = "69VddXVhzGRGh3oU6eKoWEoNMJC8RJX6by1SgcuQfPR9"
 
 [registry]
 url = "https://api.apr.dev"

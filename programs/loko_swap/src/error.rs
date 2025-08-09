@@ -24,7 +24,7 @@ pub enum AmmError {
     BumpError,
     #[msg("Curve error.")]
     CurveError,
-    #[msg("Fee is greater than 100%. This is not a very good deal.")]
+    #[msg("Fee is greater than 100%. This is a horrible deal.")]
     InvalidFee,
     #[msg("Invalid update authority.")]
     InvalidAuthority,
@@ -38,6 +38,8 @@ pub enum AmmError {
     TransferFeeNotFound,
     #[msg("Identical mints not allowed")]
     IdenticalMints,
+    #[msg("Invalid token account")]
+    InvalidTokenAccount,
     #[msg("Invalid token program")]
     InvalidTokenProgram,
     #[msg("Unsupported token extension")]
@@ -48,6 +50,8 @@ pub enum AmmError {
     InsufficientFunds,
     #[msg("Hook program not in approved list")]
     UnsupportedHookProgram,
+    #[msg("Invalid account data")]
+    InvalidAccountData,
     
 }
 

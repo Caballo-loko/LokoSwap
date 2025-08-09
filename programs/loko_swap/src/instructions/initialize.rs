@@ -13,10 +13,10 @@ pub struct Initialize<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 
-    /// The first token mint - can be Token or Token 2022
+    /// The first token mint - Token 2022 or Standard Token
     pub mint_x: InterfaceAccount<'info, Mint>,
-    
-    /// The second token mint - can be Token or Token 2022  
+
+    /// The second token mint - Token 2022 or Standard Token
     pub mint_y: InterfaceAccount<'info, Mint>,
 
     /// LP token mint - created as Token 2022 to support future extensions
@@ -31,7 +31,7 @@ pub struct Initialize<'info> {
     )]
     pub mint_lp: InterfaceAccount<'info, Mint>,
 
-    /// Vault for token X - uses the same token program as mint_x
+    /// Vault for token X Token 2022 or Standard Token
     #[account(
         init,
         payer = admin,
@@ -41,7 +41,7 @@ pub struct Initialize<'info> {
     )]
     pub vault_x: InterfaceAccount<'info, TokenAccount>,
 
-    /// Vault for token Y - uses the same token program as mint_y
+    /// Vault for token Y Token 2022 or Standard Token
     #[account(
         init,
         payer = admin,
@@ -61,14 +61,14 @@ pub struct Initialize<'info> {
     )]
     pub config: Account<'info, Config>,
 
-    /// Token program for LP tokens (Token 2022)
+    /// Token program for LP Standard token or Token 2022 tokens
     pub token_program: Interface<'info, TokenInterface>,
     
-    /// Token program for mint_x (could be Token or Token 2022)
+    /// Token program for mint_x 
     /// CHECK: Verified against mint_x owner in validate_token_programs
     pub token_program_x: AccountInfo<'info>,
     
-    /// Token program for mint_y (could be Token or Token 2022)  
+    /// Token program for mint_y   
     /// CHECK: Verified against mint_y owner in validate_token_programs
     pub token_program_y: AccountInfo<'info>,
 
@@ -86,6 +86,7 @@ impl<'info> Initialize<'info> {
         max_transfer_fee: u64,
         hook_program_id: Option<Pubkey>,
         bumps: &InitializeBumps,
+        _remaining_accounts: &[AccountInfo<'info>],
     ) -> Result<()> {
         // Validate fee is reasonable (max 10% = 1000 basis points)
         require!(fee <= 1000, AmmError::InvalidFee);
@@ -120,6 +121,7 @@ impl<'info> Initialize<'info> {
             Pubkey::from_str("2XRSVCMWbgLUJGFRdKv3TpCoMk72fPJGTb6xd2atz6NP").unwrap(), // Whitelist Hook
             Pubkey::from_str("7V4o2273MtNWDtJSuPW3UEXgumVLHgewVmQYZpLd2bGt").unwrap(), // Counter Hook  
             Pubkey::from_str("CrPqWjYKACWxozfTjbq2fC9UtCFd1DuSR9zkvhVDY4fE").unwrap(), // Transfer Cost Hook
+            Pubkey::from_str("69VddXVhzGRGh3oU6eKoWEoNMJC8RJX6by1SgcuQfPR9").unwrap(), // Dynamic Fee Hook
         ];
 
         // Initialize config with Token-2022 extension support
@@ -207,8 +209,8 @@ impl<'info> Initialize<'info> {
 
     fn check_unsupported_extensions(&self, mint: &InterfaceAccount<Mint>, mint_name: &str) -> Result<()> {
         let mint_info = mint.to_account_info();
-        
-        // Only check extensions for Token 2022 mints
+
+        // Check extensions for Token 2022 mints
         if mint_info.owner != &anchor_spl::token_interface::spl_token_2022::ID {
             return Ok(());
         }
@@ -307,6 +309,7 @@ impl<'info> Initialize<'info> {
             Pubkey::from_str("2XRSVCMWbgLUJGFRdKv3TpCoMk72fPJGTb6xd2atz6NP").unwrap(), // Whitelist Hook
             Pubkey::from_str("7V4o2273MtNWDtJSuPW3UEXgumVLHgewVmQYZpLd2bGt").unwrap(), // Counter Hook  
             Pubkey::from_str("CrPqWjYKACWxozfTjbq2fC9UtCFd1DuSR9zkvhVDY4fE").unwrap(), // Transfer Cost Hook
+            Pubkey::from_str("69VddXVhzGRGh3oU6eKoWEoNMJC8RJX6by1SgcuQfPR9").unwrap(), // Simple Hook (our deployed hook)
         ];
 
         // Check if the provided hook program is in the approved list

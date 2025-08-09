@@ -1,0 +1,24 @@
+[package]
+name = "dynamic_fee_hook"
+version = "0.1.0"
+description = "Dynamic Fee Transfer Hook for LokoSwap"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "dynamic_fee_hook"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build","anchor-spl/idl-build"]
+
+[dependencies]
+anchor-lang = {version ="0.31.1", features = ["init-if-needed", "interface-instructions"]}
+anchor-spl = {version ="0.31.1", features = ["metadata"] }
+solana-program = "2.2.1"
+spl-tlv-account-resolution = "0.10.0"
+spl-transfer-hook-interface = "0.10.0"
